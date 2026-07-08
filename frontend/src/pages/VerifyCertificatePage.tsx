@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Award, Search, Loader2, ShieldCheck, XCircle } from "lucide-react";
 import { apiGet } from "@/lib/api";
+import PublicBreadcrumbs from "@/components/PublicBreadcrumbs";
 
 type VerifyResult = {
   isValid: boolean;
@@ -44,13 +45,17 @@ export default function VerifyCertificatePage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
-      >
+    <div className="min-h-screen bg-background">
+      <div className="px-4 md:px-8 pt-4 md:pt-6 max-w-7xl">
+        <PublicBreadcrumbs />
+      </div>
+      <div className="flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="w-full max-w-md"
+        >
         <div className="text-center mb-8">
           <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
             <Award className="w-7 h-7 text-primary-foreground" />
@@ -117,6 +122,7 @@ export default function VerifyCertificatePage() {
           )}
         </div>
       </motion.div>
+      </div>
     </div>
   );
 }

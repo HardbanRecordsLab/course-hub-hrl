@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { motion } from "framer-motion";
+import PublicBreadcrumbs from "@/components/PublicBreadcrumbs";
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -35,13 +36,17 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
-      >
+    <div className="min-h-screen bg-background">
+      <div className="px-4 md:px-8 pt-4 md:pt-6 max-w-7xl">
+        <PublicBreadcrumbs />
+      </div>
+      <div className="flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="w-full max-w-md"
+        >
         <div className="text-center mb-8">
           <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
             <Zap className="w-7 h-7 text-primary-foreground" />
@@ -121,6 +126,7 @@ export default function RegisterPage() {
           </div>
         </div>
       </motion.div>
+      </div>
     </div>
   );
 }
