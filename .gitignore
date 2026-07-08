@@ -52,3 +52,7 @@ server/node_modules
 # Frontend specific
 frontend/dist
 frontend/node_modules
+
+# Wewnętrzne dokumenty planistyczne (zawierają wrażliwe dane infrastruktury)
+HRL Course Hub Biblia.md
+instrukcja-agent-ai-coursehub.md

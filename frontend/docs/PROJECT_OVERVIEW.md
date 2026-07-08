@@ -1,269 +1,159 @@
-# CourseHub — Dokument projektowy
+# HRL Course Hub — dokument projektowy
 
-> Prywatna aplikacja do zarządzania dostępem do własnych kursów hostowanych pod różnymi domenami.
-> Wersja: 2.0 · Data: lipiec 2026 · Status: MVP w budowie · Charakter: narzędzie wewnętrzne (single-user / single-tenant)
-
----
-
-## 1. Streszczenie wykonawcze
-
-**CourseHub** to **prywatne narzędzie** zbudowane wyłącznie na moje potrzeby. Nie jest to produkt SaaS, nie będzie sprzedawany innym twórcom kursów i nie ma modelu wieloklientowego. Służy do jednego celu:
-
-> **Zarządzanie dostępem do moich własnych, już istniejących kursów online, które są hostowane pod różnymi domenami i w różnych technologiach.**
-
-Aplikacja **świadomie NIE robi**:
-
-- nie tworzy kursów, lekcji, modułów ani quizów,
-- nie hostuje treści (wideo, PDF, tekst) — treść leży tam, gdzie już jest,
-- nie jest LMS-em ani platformą e-learningową w klasycznym rozumieniu,
-- nie obsługuje wielu twórców, workspace'ów ani white-labelu,
-- nie jest publicznie sprzedawana.
-
-Aplikacja **robi dokładnie**:
-
-1. **Rejestruje moje kursy** — każdy kurs to wpis w bazie z metadanymi (tytuł, opis, miniatura), zewnętrznym URL-em pod którym leży treść, ceną oraz sekretem JWT.
-2. **Zarządza użytkownikami i ich dostępami** — komu, do którego kursu, na jak długo. Ręcznie, po zakupie jednorazowym lub przez webhook.
-3. **Generuje podpisany JWT-link** wpuszczający konkretnego użytkownika do konkretnego kursu na określony czas — bez zakładania kont po stronie hosta kursu.
-4. **Loguje wszystko** — nadania, odebrania, wygenerowane linki, użycia — do prostego audytu.
-
-Model płatności dla użytkownika końcowego (kupującego kurs): **jednorazowa opłata**, bez subskrypcji. Dostęp: dożywotni albo czasowy — konfigurowany per kurs.
+> Prywatne narzędzie do zarządzania dostępem do kursów hostowanych pod różnymi domenami.
+> Status: produkcja (VPS + Vercel). Charakter: narzędzie wewnętrzne (single-tenant).
 
 ---
 
-## 2. Po co mi to (kontekst i problem)
+## 1. Streszczenie
 
-Mam kilka kursów rozrzuconych po różnych domenach i stackach — część na WordPressie, część jako aplikacje webowe, część jako materiały w Notion / Google Drive / Vimeo unlisted. Każdy z tych hostów ma inny (albo żaden) mechanizm kontroli dostępu:
+**HRL Course Hub** to cienka warstwa zarządzania dostępem do kursów online hostowanych pod różnymi domenami. Kursy już istnieją — HRL Course Hub **nie tworzy treści**, **nie hostuje wideo**, **nie jest LMS-em**. Służy do:
 
-- WordPress ma pluginy członkowskie (PMPro), ale utrzymanie WP i pluginów kosztuje czas.
-- Notion / Drive / Vimeo unlisted w praktyce nie mają kontroli dostępu — link „unlisted" jest równoznaczny z linkiem publicznym po pierwszym udostępnieniu.
-- Aplikacje webowe wymagałyby zaimplementowania własnego auth w każdej z osobna.
+1. **Rejestrowania kursów** jako metadane (tytuł, opis, zewnętrzny URL, cena, sekret JWT per kurs).
+2. **Zarządzania użytkownikami i dostępami** (user × kurs, opcjonalna data wygaśnięcia).
+3. **Generowania podpisanych JWT-linków** wpuszczających użytkownika do konkretnego kursu na konkretnej domenie.
+4. **Przyjmowania jednorazowych płatności Stripe** i automatycznego nadawania dostępu.
+5. **Wystawiania certyfikatów PDF** z publiczną weryfikacją.
+6. **Logowania aktywności** (audyt: kto, co, kiedy).
 
-Nie chcę migrować treści na jedną platformę (LMS), bo:
+Aplikacja **świadomie NIE robi**: nie tworzy treści, nie hostuje plików, nie obsługuje subskrypcji, nie jest multi-tenantem, nie ma forum/gamifikacji/śledzenia postępu w lekcjach.
 
-- treść jest już przygotowana w odpowiednim formacie dla danego hosta,
-- migracja to duży koszt, a zysk zerowy (kursy działają),
-- LMS-y (Teachable, Kajabi, Thinkific) są drogie, biorą prowizję i wymuszają swój branding.
+## 2. Architektura
 
-Potrzebuję **jednej, cienkiej warstwy**, która:
+```
+┌────────────────────┐     HTTPS/REST     ┌─────────────────────────┐
+│  Vercel (frontend) │ ─────────────────► │  VPS (Express API)      │
+│  app-course-hub.   │                    │  api.course-hub.        │
+│  hardbanrecordslab │                    │  hardbanrecordslab.     │
+│  .online           │                    │  online :443            │
+│  React + Vite SPA  │                    │  (Nginx reverse proxy)  │
+└────────────────────┘                    └────────────┬────────────┘
+                                                      │
+                                         ┌────────────▼────────────┐
+                                         │  PostgreSQL (VPS)        │
+                                         │  hrl_course_hub @ :5433  │
+                                         └─────────────────────────┘
 
-- trzyma spis moich kursów,
-- trzyma spis użytkowników i ich uprawnień,
-- generuje krótkoterminowe podpisane linki wpuszczające do właściwego kursu,
-- pokazuje mi log tego, co się dzieje.
-
-To jest CourseHub. Nic więcej.
-
----
-
-## 3. Zakres funkcjonalny
-
-### 3.1 W zakresie
-
-- CRUD moich kursów (metadane + zewnętrzny URL + cena + sekret JWT).
-- Zarządzanie użytkownikami (rola `admin` = ja; rola `student` = kupujący/zaproszeni).
-- Macierz dostępów użytkownik × kurs, z opcjonalną datą wygaśnięcia.
-- Generowanie podpisanych JWT-linków przez edge function.
-- Log aktywności (nadanie/odebranie dostępu, wygenerowanie/użycie linku).
-- Portal ucznia (`/portal`) z listą kursów, do których użytkownik ma aktywny dostęp.
-- Integracje wychodzące z narzędziami komunikacji i automatyzacji, których i tak używam (email, Slack, Telegram, n8n, Google Sheets).
-- Konfigurowalny czas ważności linku (domyślnie 24 h).
-
-### 3.2 Poza zakresem (świadomie)
-
-- Edytor treści kursów.
-- Odtwarzacz i hosting wideo.
-- Forum, komentarze, gamifikacja, certyfikaty.
-- Subskrypcje cykliczne dla końcowego kupującego.
-- Wieloklientowość / multi-tenant / workspace'y innych twórców.
-- White-label, subdomeny klientów, marketplace.
-- Publiczna rejestracja innych „twórców kursów" — dostęp do panelu admina mam tylko ja.
-
----
-
-## 4. Architektura
-
-### 4.1 Stos technologiczny
-
-**Frontend**
-- React 18 + TypeScript, Vite 5
-- Tailwind CSS v3, shadcn/ui, Framer Motion
-- Tanstack Query, React Router 6
-- Typografia: Space Grotesk (nagłówki) + JetBrains Mono (dane), Inter fallback
-- Motyw: dark professional, zielony akcent — wszystkie kolory jako design tokeny w `src/index.css`
-
-**Backend (Lovable Cloud)**
-- Postgres z RLS na wszystkich tabelach domenowych
-- Auth (email/password, docelowo Google OAuth) — używane głównie do ochrony portalu ucznia; do panelu admina wchodzę tylko ja
-- Edge Functions (Deno) — generator linków JWT, webhook płatności
-- Storage — miniaturki kursów, avatary
-
-**Bezpieczeństwo**
-- RLS włączone wszędzie, polityki per rola.
-- Role trzymane w osobnej tabeli `user_roles` (enum `app_role`) — nigdy na profilach.
-- Funkcja `has_role(uuid, app_role)` w SECURITY DEFINER.
-- `jwt_secret` każdego kursu odczytywany wyłącznie z edge functions — frontend nie ma do niego dostępu.
-- Widok `courses_public` bez pola `jwt_secret` do użytku portalu ucznia.
-- Wszystkie `GRANT`-y jawne w migracjach.
-
-### 4.2 Model danych
-
-```text
-auth.users
-    ├── profiles (1:1) — display_name, avatar_url
-    ├── user_roles (1:N) — 'admin' | 'student'
-    └── course_access (N:N przez courses)
-              │
-              ▼
-         courses ── access_logs (N:1)
+Zewnętrzne:
+  Stripe       — płatności jednorazowe (mode: "payment")
+  Host kursu   — zewnętrzna domena z weryfikatorem JWT (lokalna weryfikacja)
 ```
 
-**`courses`**: `id`, `title`, `description`, `thumbnail_url`, `course_url`, `price_cents`, `currency`, `access_type` (`jwt_link`), `jwt_secret`, `is_active`.
-**`course_access`**: `user_id`, `course_id`, `granted_at`, `expires_at` (nullable = bezterminowo), `granted_by` (uuid admina lub `'purchase'` / `'import'` / `'webhook'`), `revoked_at`.
-**`access_logs`**: `user_id`, `course_id`, `action` (`granted` | `revoked` | `link_generated` | `link_used`), `meta` (jsonb), `created_at`.
+Pełen opis: patrz `docs/ARCHITEKTURA.md`.
 
-### 4.3 Przepływ „student otwiera kurs"
+## 3. Stos technologiczny
 
-```text
-Portal ucznia
-   │  klik „Otwórz kurs"
-   ▼
-Edge Function `generate-access-link`
-   │  1. odczytuje auth.uid()
-   │  2. sprawdza aktywny wpis w course_access
-   │  3. czyta jwt_secret kursu
-   │  4. podpisuje payload { userId, courseId, exp, jti }
-   │  5. INSERT do access_logs (action='link_generated')
-   │  6. zwraca URL: {course_url}?ch_token={jwt}
-   ▼
-Redirect do hosta kursu (moja domena X, Y lub Z)
-   │
-   ▼
-Weryfikator po stronie hosta
-   │  sprawdza podpis sekretem
-   │  OK → puszcza; źle → odsyła do CourseHub
+| Warstwa | Technologia | Gdzie |
+|---|---|---|
+| Frontend | React 18 + Vite + Tailwind + shadcn/ui | Vercel (`app-course-hub.hardbanrecordslab.online`) |
+| Backend | Node.js 20 + Express 4 + TypeScript | VPS (`api.course-hub.hardbanrecordslab.online`) |
+| ORM | Prisma 6 | Backend |
+| Baza danych | PostgreSQL 16 | VPS (port 5433) |
+| Auth | JWT (bcrypt + jsonwebtoken) | Backend |
+| Płatności | Stripe Checkout (mode: `payment`) | Stripe API |
+| Certyfikaty | jsPDF + html2canvas (frontend) | Przeglądarka |
+| Weryfikacja linków | Custom JWT verifier | Host kursu (Cloudflare Worker / WP / Node) |
+| Process manager | PM2 | VPS |
+
+## 4. Model danych (Prisma)
+
+| Model | Rola |
+|---|---|
+| `User` | Konta (ADMIN \| STUDENT) |
+| `Course` | Metadane kursu + `externalUrl` + `integrationSecretHash` (sekret per kurs) |
+| `Enrollment` | Dostęp user × kurs, `status`, `accessEndsAt`, `completedAt` |
+| `Order` + `OrderItem` | Jednorazowe zamówienia Stripe |
+| `Certificate` | Wystawiony certyfikat, `verificationCode`, snapshot imienia i tytułu |
+| `AccessLog` | Audyt: `granted` \| `revoked` \| `link_generated` \| `certificate_issued` \| `login` |
+
+Pełen opis: patrz `docs/MODEL-DANYCH.md`.
+
+## 5. Endpointy API
+
+- `POST /api/auth/register` | `POST /api/auth/login` | `GET /api/auth/me`
+- `GET /api/courses` | `GET /api/courses/admin` (admin) | `POST /api/courses` | `PATCH /api/courses/:id` | `DELETE /api/courses/:id`
+- `GET /api/access` (admin) | `GET /api/access/mine` | `POST /api/access` | `DELETE /api/access/:id`
+- `PATCH /api/access/:id/complete` (admin) | `POST /api/access/:id/generate-link`
+- `GET /api/certificates` (admin) | `GET /api/certificates/mine` | `GET /api/certificates/verify/:code` (publiczny)
+- `POST /api/checkout` | `POST /api/webhooks/stripe`
+- `GET /api/users` (admin) | `PATCH /api/users/:id`
+- `GET /api/logs` (admin) | `GET /api/health`
+
+Pełen opis każdego endpointu: patrz `docs/API.md`.
+
+## 6. Przepływ: student kupuje kurs
+
+```
+1. Student → POST /api/checkout { courseId }
+2. Backend → Stripe Checkout Session (mode: "payment")
+3. Student płaci na stronie Stripe
+4. Stripe → POST /api/webhooks/stripe (event: checkout.session.completed)
+5. Backend weryfikuje podpis (STRIPE_WEBHOOK_SECRET)
+6. Backend: Order.status = PAID, tworzy Enrollment (status=ACTIVE, source="purchase")
+7. Jeśli course.certificateEnabled && certificateIssueMode === "on_purchase"
+   → wystawia Certificate natychmiast
+8. AccessLog: action="granted"
+9. Student w portalu klika "Otwórz kurs"
+10. Frontend → POST /api/access/:id/generate-link
+11. Backend podpisuje JWT sekretem integrationSecretHash kursu
+12. Frontend otwiera {externalUrl}?ch_token={jwt}
+13. Weryfikator na hoście kursu sprawdza podpis LOKALNIE → wpuszcza lub odmawia
 ```
 
-**Kluczowe:** weryfikacja podpisu odbywa się **po stronie hosta kursu** (mały skrypt: WP plugin, Cloudflare Worker, snippet Node). CourseHub nigdy nie proxy-uje treści — jego dostępność jest niezależna od dostępności kursów.
+## 7. Przepływ: student wchodzi do kursu (już ma dostęp)
 
----
-
-## 5. Obecny stan wdrożenia
-
-### 5.1 Co działa
-
-- Routing panelu admina i portalu ucznia.
-- `AdminLayout`: boczna nawigacja, header, breadcrumbs (shadcn, desktop + mobile z collapse), `Sheet` na małych ekranach.
-- `ProtectedRoute` dla tras wymagających auth.
-- Widoki: **Dashboard**, **Kursy**, **Użytkownicy**, **Dostępy**, **Aktywność**, **Ustawienia** (Ogólne / Bezpieczeństwo / Integracje: MailerLite, Brevo, Slack, Telegram, Google Sheets, n8n / Email), **Portal ucznia**.
-- Migracje bazy: `courses`, `course_access`, `access_logs`, `profiles`, `user_roles`, enum `app_role`, funkcja `has_role`, widok `courses_public`, trigger auto-nadający rolę `student` przy rejestracji, kompletne RLS + GRANT-y.
-- Design system: semantyczne tokeny, warianty shadcn spójne z motywem.
-
-### 5.2 W trakcie
-
-- **Generator JWT** — przycisk „Otwórz kurs" istnieje, ale odsyła surowy `course_url`; brak podpięcia do edge function.
-- **Integracje w `SettingsPage`** — UI działa, brak trwałego zapisu do backendu.
-- **Metryki Dashboardu** — renderują dane demo z `mockData.ts`, do podpięcia agregacje SQL.
-
-### 5.3 Do zrobienia
-
-- Edge Function `generate-access-link` (podpis HS256, log w `access_logs`).
-- Edge Function `webhook-payment` (Stripe `checkout.session.completed` → `INSERT INTO course_access`).
-- Referencyjne weryfikatory dla moich hostów: wtyczka WordPress + Cloudflare Worker + snippet Node — po jednym dla każdej używanej domeny.
-- Integracja Stripe (jednorazowe checkouty, produkty spięte z tabelą `courses`).
-- Przywrócenie realnego Supabase Auth (obecny dev-admin bypass w `AuthContext` do wyłączenia przed publikacją).
-- Trwały zapis konfiguracji integracji.
-- Realne metryki Dashboardu.
-- Powiadomienia email: potwierdzenie nadania dostępu, przypomnienie przed wygaśnięciem.
-- (Opcjonalnie) Import CSV, jeśli będę musiał wgrać większą listę użytkowników z historycznych sprzedaży.
-
----
-
-## 6. Roadmapa (moja, prywatna)
-
-### Faza 1 — Doprowadzić do produkcji (T + 4 tyg.)
-
-- [ ] Edge function `generate-access-link`.
-- [ ] Webhook Stripe.
-- [ ] Realny Supabase Auth, usunięcie dev-admin bypass.
-- [ ] Metryki Dashboardu z realnych zapytań.
-- [ ] Weryfikator: Cloudflare Worker (~50 linii TS) + WP plugin (~150 linii PHP) dla moich kursów.
-- [ ] Emaile transakcyjne (potwierdzenie zakupu, przypomnienie o wygaśnięciu).
-- [ ] Notatka w README: format payloadu JWT + jak wdrożyć weryfikator na nowej domenie.
-
-### Faza 2 — Ułatwienia operacyjne (gdy zajdzie potrzeba)
-
-- Import CSV użytkowników z historycznych sprzedaży.
-- Kupony i kody rabatowe.
-- Konfigurowalne szablony emaili.
-- Ewentualnie Paddle jako MoR, gdy sprzedaż wyjdzie mocno poza PL.
-
-### Faza 3 — Wygoda długoterminowa
-
-- PWA portalu ucznia.
-- Auto-mail „nie kliknąłeś linku 7 dni".
-- Integracja Przelewy24 / Autopay, jeśli będzie sensowna.
-
-**Świadomie NIE ma w roadmapie:** multi-tenant, białe etykiety, marketplace, sprzedaż CourseHub jako produktu, panel afiliacyjny dla innych. To pozostaje moim narzędziem.
-
----
-
-## 7. Wizja (moja, nie produktowa)
-
-CourseHub ma być dla mnie tym, czym Stripe Dashboard jest dla płatności — **cienką, niezawodną warstwą kontroli** nad czymś, co dzieje się gdzie indziej. Nie chcę budować kolejnego LMS-a, nie chcę konkurować z Teachable ani sprzedawać SaaS-a innym twórcom. Chcę mieć **jedno miejsce**, w którym:
-
-- widzę wszystkie swoje kursy niezależnie od domeny,
-- widzę wszystkich swoich użytkowników i ich stan dostępu,
-- jednym kliknięciem nadaję / odbieram dostęp,
-- mam pewność, że linki są krótkoterminowe i podpisane,
-- mam historię do audytu (kto kupił, kto dostał, kto kliknął).
-
-Sukces = przestaję martwić się o to, kto ma dostęp do czego, i mogę się skupić na tworzeniu nowych kursów, a nie na administrowaniu dostępami do starych.
-
----
-
-## 8. Standardy techniczne
-
-- RLS zawsze włączone; `GRANT` w tej samej migracji co `CREATE TABLE`.
-- Role w osobnej tabeli, `has_role()` w SECURITY DEFINER.
-- Sekrety kursów wyłącznie w bazie, dostępne tylko z edge functions.
-- Design tokeny w `index.css` — żadnych hardkodowanych kolorów w komponentach.
-- Wersjonowanie payloadu JWT polem `v` (rotacja bez psucia starych linków).
-- Każda operacja na `course_access` → wpis w `access_logs`.
-
----
-
-## 9. Załączniki
-
-### 9.1 Format payloadu JWT
-
-```json
-{
-  "v": 1,
-  "iss": "coursehub",
-  "sub": "<user_id uuid>",
-  "aud": "<course_id uuid>",
-  "iat": 1720000000,
-  "exp": 1720086400,
-  "jti": "<uuid v4>",
-  "email": "user@example.com"
-}
+```
+1. Student loguje się → JWT sesyjny (SESSION_JWT_SECRET, 7 dni)
+2. Portal → "Otwórz kurs" → POST /api/access/:id/generate-link (Authorization: Bearer <session>)
+3. Backend sprawdza: enrollment ACTIVE, nie wygasł, course.integrationSecretHash istnieje
+4. Backend podpisuje JWT kursu (HS256):
+     { v, iss, sub, aud, iat, exp(+24h), jti, email, courseId }
+5. AccessLog: action="link_generated"
+6. Zwrócony URL: {externalUrl}?ch_token={jwt}
+7. Frontend → window.location = url
+8. Weryfikator na hoście kursu:
+   - czyta ch_token z query
+   - weryfikuje podpis sekretem kursu (HS256)
+   - sprawdza exp (ważność)
+   - jeśli OK → wpuszcza; jeśli nie → redirect 403
+9. Zero synchronicznych zapytań do VPS HRL Course Hub
 ```
 
-Algorytm: `HS256`, sekret per-kurs.
+## 8. Sekrety — dwa różne, nigdy nie mylić
 
-### 9.2 Kontrakt webhooka Stripe
+| Sekret | Używany do | Gdzie przechowywany |
+|---|---|---|
+| `SESSION_JWT_SECRET` | Sesja logowania (admin / student) | VPS `.env` |
+| `Course.integrationSecretHash` | JWT-link do treści kursu na zewnętrznej domenie | DB (per kurs) |
 
-- Zdarzenie: `checkout.session.completed`.
-- Metadane sesji: `course_id`, `user_email`.
-- Efekt: `INSERT INTO course_access (user_id, course_id, granted_by, expires_at)` z `granted_by = 'purchase'` i opcjonalnym `expires_at` z konfiguracji kursu.
+Pełen opis: patrz `docs/ZMIENNE-SRODOWISKOWE.md`.
 
-### 9.3 Słownik
+## 9. Certyfikaty
 
-- **JWT-link** — link z tokenem podpisanym per-kurs, autoryzujący jedną sesję dostępu.
-- **Host kursu** — dowolna moja domena / aplikacja, pod którą leży realna treść kursu.
-- **Weryfikator** — mały skrypt po stronie hosta, sprawdzający podpis tokenu.
-- **Dostęp** — wpis w `course_access` łączący usera z kursem (aktywny lub odebrany).
+- Tryb `manual` — admin oznacza ukończenie w panelu (`PATCH /api/access/:id/complete`)
+- Tryb `on_purchase` — certyfikat wystawiany automatycznie po `checkout.session.completed`
+- PDF generowany w przeglądarce (jsPDF + html2canvas, A4 landscape)
+- Publiczna weryfikacja: `https://app-course-hub.hardbanrecordslab.online/verify/:code`
+- Endpoint `/api/certificates/verify/:code` zwraca minimum danych: imię, tytuł kursu, data, `isValid`
 
----
+Pełen opis: patrz `docs/CERTYFIKATY.md`.
 
-*Dokument prywatny. Aplikacja wyłącznie na moje potrzeby — nie jest produktem SaaS i nie będzie udostępniana innym twórcom.*
+## 10. Wdrożenie
+
+- **VPS**: `/opt/hrl-course-hub-server/` — Node + Prisma + PostgreSQL + Nginx reverse proxy + Let's Encrypt
+- **Vercel**: auto-deploy z brancha `main` GitHub repo `HardbanRecordsLab/course-hub-hrl`
+- **Baza**: `hrl_course_hub` na porcie 5433, osobna od innych usług
+- **SSL**: Let's Encrypt przez Certbot, automatyczne odnawianie
+- **PM2**: proces `hrl-course-hub-api`, logi: `pm2 logs hrl-course-hub-api`
+
+Pełen opis krok po kroku: patrz `docs/INSTALACJA-VPS.md` i `docs/INSTALACJA-VERCEL.md`.
+
+## 11. Operacja po wdrożeniu
+
+- Logi aktywności: panel → **Aktywność** (admin)
+- Logi backendu: `pm2 logs hrl-course-hub-api`
+- Restart po zmianach: `pm2 restart hrl-course-hub-api`
+- Migracja po zmianie schematu: `cd /opt/hrl-course-hub-server && npx prisma migrate deploy`
+- Backup bazy: cron z `pg_dump` (do skonfigurowania, patrz `docs/INSTALACJA-VPS.md` § 14)
+
+Pełen opis codziennej obsługi: patrz `docs/PODRECZNIK-ADMINA.md`.
