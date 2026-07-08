@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  STUDENT
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum IntegrationType {
+  JWT
+  OAUTH2
+  IFRAME
+  REDIRECT_COOKIE
+  CUSTOM_API
+}
+
+enum PaywallType {
+  HARD
+  SOFT
+  FREEMIUM
+  PREVIEW
+}
+
+enum AccessType {
+  LIFETIME
+  FIXED_DAYS
+  DATE_RANGE
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  CANCELED
+}
+
+enum EnrollmentStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  name         String?
+  passwordHash String?
+  role         UserRole      @default(STUDENT)
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  enrollments     Enrollment[]
+  orders          Order[]
+  certificates    Certificate[]
+  accessLogs      AccessLog[]
+}
+
+model Course {
+  id                  String          @id @default(cuid())
+  title               String
+  description         String?
+  imageUrl            String?
+  status              CourseStatus    @default(DRAFT)
+  externalUrl         String
+  integrationType     IntegrationType @default(JWT)
+  integrationSecretHash String?
+  paywallType         PaywallType     @default(HARD)
+  accessType          AccessType      @default(LIFETIME)
+  accessDays          Int?
+  accessStartAt       DateTime?
+  accessEndAt         DateTime?
+  studentLimit        Int?
+  publishedAt         DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  currency            String          @default("PLN")
+  priceCents          Int             @default(0)
+  certificateEnabled  Boolean         @default(false)
+  certificateIssueMode String         @default("manual")
+
+  enrollments     Enrollment[]
+  orderItems      OrderItem[]
+  certificates    Certificate[]
+  accessLogs      AccessLog[]
+}
+
+model Order {
+  id                      String      @id @default(cuid())
+  userId                  String
+  status                  OrderStatus @default(PENDING)
+  currency                String      @default("PLN")
+  subtotal                Int         @default(0)
+  discountTotal           Int         @default(0)
+  total                   Int         @default(0)
+  stripeCheckoutSessionId String?     @unique
+  stripePaymentIntentId   String?     @unique
+  stripeCustomerId        String?
+  createdAt               DateTime    @default(now())
+  paidAt                  DateTime?
+
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items  OrderItem[]
+}
+
+model OrderItem {
+  id         String @id @default(cuid())
+  orderId    String
+  courseId   String
+  unitAmount Int
+  quantity   Int    @default(1)
+
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
+}
+
+model Enrollment {
+  id             String           @id @default(cuid())
+  userId         String
+  courseId       String
+  orderId        String?
+  source         String
+  status         EnrollmentStatus @default(PENDING)
+  accessStartsAt DateTime         @default(now())
+  accessEndsAt   DateTime?
+  lastLaunchedAt DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+}
+
+model Certificate {
+  id                  String    @id @default(cuid())
+  userId              String
+  courseId            String
+  verificationCode    String    @unique @default(cuid())
+  studentDisplayName  String
+  courseTitleSnapshot String
+  issuedAt            DateTime  @default(now())
+  issuedByUserId      String?
+  revokedAt           DateTime?
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+}
+
+model AccessLog {
+  id        String    @id @default(cuid())
+  userId    String
+  courseId  String
+  action    String
+  meta      Json?
+  createdAt DateTime  @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+}
