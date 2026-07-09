@@ -17,7 +17,15 @@ declare global {
   }
 }
 
-const SESSION_JWT_SECRET = process.env.SESSION_JWT_SECRET ?? "hrl_course_hub_session_991823_change_in_production_xyz";
+function getSessionSecret(): string {
+  const secret = process.env.SESSION_JWT_SECRET;
+  if (!secret) {
+    throw new Error("SESSION_JWT_SECRET environment variable is required");
+  }
+  return secret;
+}
+
+const SESSION_JWT_SECRET = getSessionSecret();
 
 export function signSessionToken(payload: AuthUser): string {
   return jwt.sign(

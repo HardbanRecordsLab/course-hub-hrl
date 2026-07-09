@@ -2,12 +2,13 @@ import { Request, Response, Router } from "express";
 import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma";
 import { requireAuth, signSessionToken } from "../middleware/auth";
+import { authLimiter, registerLimiter, speedLimiter } from "../middleware/rateLimit";
 
 export const authRouter = Router();
 
 const SALT_ROUNDS = 12;
 
-authRouter.post("/register", async (req: Request, res: Response) => {
+authRouter.post("/register", registerLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password, name } = req.body ?? {};
 
@@ -40,7 +41,7 @@ authRouter.post("/register", async (req: Request, res: Response) => {
   }
 });
 
-authRouter.post("/login", async (req: Request, res: Response) => {
+authRouter.post("/login", authLimiter, speedLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body ?? {};
 
