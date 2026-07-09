@@ -28,8 +28,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const token = localStorage.getItem("hrl_token");
     if (token) {
-      apiGet<AppUser>("/api/auth/me")
-        .then(setUser)
+      apiGet<{ id: string; name: string; email: string; role: string } & Record<string, unknown>>("/api/auth/me")
+        .then((u) => setUser({ ...u, role: u.role.toLowerCase() as UserRole }))
         .catch(() => localStorage.removeItem("hrl_token"))
         .finally(() => setLoading(false));
     } else {
