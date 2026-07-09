@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Award, Search, Download, Loader2, Eye } from "lucide-react";
+import { Award, Search, Download, Loader2, Eye, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -93,6 +93,18 @@ export default function CertificatesPage() {
       toast({ title: "Błąd", description: e.message, variant: "destructive" }),
   });
 
+  const revokeMutation = useMutation({
+    mutationFn: async (certId: string) => {
+      await apiPatch(`/api/certificates/${certId}/revoke`, {});
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["certificates"] });
+      toast({ title: "Certyfikat unieważniony" });
+    },
+    onError: (e: Error) =>
+      toast({ title: "Błąd", description: e.message, variant: "destructive" }),
+  });
+
   const downloadCertificate = async (cert: Certificate) => {
     try {
       const { generateCertificatePDF } = await import("@/utils/CertificateGenerator");
@@ -166,8 +178,13 @@ export default function CertificatesPage() {
               </div>
               <div className="col-span-2 text-xs text-muted-foreground">
                 {new Date(cert.issuedAt).toLocaleDateString("pl-PL")}
+                {cert.revokedAt && (
+                  <span className="block text-destructive text-[10px] mt-0.5">
+                    Unieważniony: {new Date(cert.revokedAt).toLocaleDateString("pl-PL")}
+                  </span>
+                )}
               </div>
-              <div className="col-span-2 text-right">
+              <div className="col-span-2 text-right flex justify-end gap-1">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -176,6 +193,21 @@ export default function CertificatesPage() {
                 >
                   <Download className="w-3.5 h-3.5" /> PDF
                 </Button>
+                {!cert.revokedAt && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1 text-destructive hover:text-destructive"
+                    onClick={() => {
+                      if (window.confirm(`Czy na pewno chcesz unieważnić certyfikat dla "${cert.studentDisplayName}"?`)) {
+                        revokeMutation.mutate(cert.id);
+                      }
+                    }}
+                    disabled={revokeMutation.isPending}
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                  </Button>
+                )}
               </div>
             </motion.div>
           ))}

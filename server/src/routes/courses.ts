@@ -1,5 +1,7 @@
 import { Request, Response, Router } from "express";
 import { Prisma } from "@prisma/client";
+import { randomUUID } from "node:crypto";
+import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma";
 import { requireAdmin, requireAuth } from "../middleware/auth";
 
@@ -142,6 +144,156 @@ coursesRouter.delete("/:id", requireAuth, requireAdmin, async (req: Request, res
       return;
     }
     console.error("delete course error", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+coursesRouter.get("/:id/view", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? (req.params.id[0] ?? "") : (req.params.id ?? "");
+    if (!id) {
+      res.status(400).json({ message: "Invalid course id" });
+      return;
+    }
+
+    const course = await prisma.course.findUnique({
+      where: { id },
+      select: { id: true, title: true, externalUrl: true, status: true, integrationSecretHash: true },
+    });
+
+    if (!course) {
+      res.status(404).json({ message: "Course not found" });
+      return;
+    }
+
+    if (req.user!.role !== "ADMIN" && course.status !== "PUBLISHED") {
+      res.status(403).json({ message: "Course is not available" });
+      return;
+    }
+
+    let enrollmentId: string | null = null;
+
+    if (req.user!.role !== "ADMIN") {
+      const activeEnrollment = await prisma.enrollment.findFirst({
+        where: {
+          userId: req.user!.id,
+          courseId: id,
+          status: "ACTIVE",
+          OR: [{ accessEndsAt: null }, { accessEndsAt: { gt: new Date() } }],
+        },
+      });
+
+      if (!activeEnrollment) {
+        res.status(403).json({ message: "No active access to this course" });
+        return;
+      }
+      enrollmentId = activeEnrollment.id;
+    } else {
+      // For admin, find any enrollment for this course
+      const anyEnrollment = await prisma.enrollment.findFirst({
+        where: { courseId: id },
+        select: { id: true },
+      });
+      if (anyEnrollment) {
+        enrollmentId = anyEnrollment.id;
+      }
+    }
+
+    await prisma.enrollment.updateMany({
+      where: { userId: req.user!.id, courseId: id },
+      data: { lastLaunchedAt: new Date() },
+    });
+
+    // Generate JWT-signed URL if course has integration secret
+    let launchUrl = course.externalUrl;
+    if (course.integrationSecretHash && enrollmentId) {
+      const now = Math.floor(Date.now() / 1000);
+      const token = jwt.sign(
+        {
+          v: 1,
+          iss: "HRL Course Hub",
+          sub: req.user!.id,
+          aud: course.externalUrl,
+          iat: now,
+          exp: now + 60 * 60 * 24,
+          jti: randomUUID(),
+          email: req.user!.email,
+          courseId: course.id,
+        },
+        course.integrationSecretHash,
+        { algorithm: "HS256" }
+      );
+
+      const separator = course.externalUrl.includes("?") ? "&" : "?";
+      launchUrl = `${course.externalUrl}${separator}ch_token=${token}`;
+    }
+
+    res.json({ externalUrl: launchUrl, title: course.title });
+  } catch (err) {
+    console.error("course view error", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+    if (!course) {
+      res.status(404).json({ message: "Course not found" });
+      return;
+    }
+
+    if (req.user!.role !== "ADMIN" && course.status !== "PUBLISHED") {
+      res.status(403).json({ message: "Course is not available" });
+      return;
+    }
+
+    let activeEnrollment = null;
+    if (req.user!.role !== "ADMIN") {
+      activeEnrollment = await prisma.enrollment.findFirst({
+        where: {
+          userId: req.user!.id,
+          courseId: id,
+          status: "ACTIVE",
+          OR: [{ accessEndsAt: null }, { accessEndsAt: { gt: new Date() } }],
+        },
+      });
+
+      if (!activeEnrollment) {
+        res.status(403).json({ message: "No active access to this course" });
+        return;
+      }
+    }
+
+    await prisma.enrollment.updateMany({
+      where: { userId: req.user!.id, courseId: id },
+      data: { lastLaunchedAt: new Date() },
+    });
+
+    // Generate JWT-signed URL if course has integration secret
+    let launchUrl = course.externalUrl;
+    if (course.integrationSecretHash) {
+      const now = Math.floor(Date.now() / 1000);
+      const token = jwt.sign(
+        {
+          v: 1,
+          iss: "HRL Course Hub",
+          sub: req.user!.id,
+          aud: course.externalUrl,
+          iat: now,
+          exp: now + 60 * 60 * 24, // 24 hours
+          jti: randomUUID(),
+          email: req.user!.email,
+          courseId: course.id,
+        },
+        course.integrationSecretHash,
+        { algorithm: "HS256" }
+      );
+
+      const separator = course.externalUrl.includes("?") ? "&" : "?";
+      launchUrl = `${course.externalUrl}${separator}ch_token=${token}`;
+    }
+
+    res.json({ externalUrl: launchUrl, title: course.title });
+  } catch (err) {
+    console.error("course view error", err);
     res.status(500).json({ message: "Internal server error" });
   }
 });

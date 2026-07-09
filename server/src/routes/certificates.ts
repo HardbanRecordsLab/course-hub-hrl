@@ -59,3 +59,27 @@ certificatesRouter.get("/verify/:code", async (req: Request, res: Response) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+certificatesRouter.patch("/:id/revoke", requireAuth, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? (req.params.id[0] ?? "") : (req.params.id ?? "");
+    if (!id) {
+      res.status(400).json({ message: "Invalid certificate id" });
+      return;
+    }
+
+    const certificate = await prisma.certificate.update({
+      where: { id },
+      data: { revokedAt: new Date() },
+    });
+
+    res.json({ message: "Certificate revoked", certificate });
+  } catch (err) {
+    if ((err as { code?: string }).code === "P2025") {
+      res.status(404).json({ message: "Certificate not found" });
+      return;
+    }
+    console.error("certificate revoke error", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});

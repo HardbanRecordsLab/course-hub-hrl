@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Plus, ExternalLink, Pencil, Trash2, Users, Loader2 } from "lucide-react";
+import { Plus, ExternalLink, Pencil, Trash2, Users, Loader2, Eye } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -56,6 +57,7 @@ function formatPrice(cents: number, currency: string) {
 }
 
 export default function Courses() {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -193,6 +195,13 @@ export default function Courses() {
                 </div>
 
                 <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => navigate(`/course/${course.id}`)}
+                    className="p-2 rounded-lg hover:bg-ch-surface-2 text-muted-foreground hover:text-foreground transition-colors"
+                    title="Podgląd"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                  </button>
                   <button
                     onClick={() => openEdit(course)}
                     className="p-2 rounded-lg hover:bg-ch-surface-2 text-muted-foreground hover:text-foreground transition-colors"

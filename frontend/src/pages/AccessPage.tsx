@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Loader2, Plus, Trash2, Search, ExternalLink, CalendarClock } from "lucide-react";
+import { Loader2, Plus, Trash2, Search, ExternalLink, CalendarClock, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiGet, apiPost, apiDelete } from "@/lib/api";
+import { apiGet, apiPost, apiDelete, apiPatch } from "@/lib/api";
 
 type Profile = { id: string; name: string | null; email: string };
 type CoursePublic = { id: string; title: string; externalUrl: string };
@@ -116,6 +116,18 @@ export default function AccessPage() {
       toast({ title: "Błąd", description: e.message, variant: "destructive" }),
   });
 
+  const completeMutation = useMutation({
+    mutationFn: async (row: CourseAccessRow) => {
+      await apiPatch(`/api/access/${row.id}/complete`, {});
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["course-access"] });
+      toast({ title: "Ukończenie oznaczone, certyfikat wystawiony" });
+    },
+    onError: (e: Error) =>
+      toast({ title: "Błąd", description: e.message, variant: "destructive" }),
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -152,10 +164,10 @@ export default function AccessPage() {
         <div className="rounded-xl bg-card border border-border overflow-hidden">
           <div className="grid grid-cols-12 gap-4 px-5 py-3 text-[11px] uppercase tracking-wider font-mono text-muted-foreground border-b border-border bg-ch-surface-2/40">
             <div className="col-span-4">Użytkownik</div>
-            <div className="col-span-4">Kurs</div>
+            <div className="col-span-3">Kurs</div>
             <div className="col-span-2">Wygasa</div>
             <div className="col-span-1">Źródło</div>
-            <div className="col-span-1 text-right">Akcje</div>
+            <div className="col-span-2 text-right">Akcje</div>
           </div>
           {filtered.map((row, i) => {
             const p = profileById[row.userId];
@@ -176,7 +188,7 @@ export default function AccessPage() {
                     <p className="text-xs text-muted-foreground truncate">{p.email}</p>
                   )}
                 </div>
-                <div className="col-span-4 min-w-0">
+                <div className="col-span-3 min-w-0">
                   <p className="truncate">{c?.title || "—"}</p>
                   {c?.externalUrl && (
                     <a
@@ -204,7 +216,17 @@ export default function AccessPage() {
                     {row.source}
                   </span>
                 </div>
-                <div className="col-span-1 text-right">
+                <div className="col-span-2 text-right flex justify-end gap-1">
+                  {row.status === "ACTIVE" && (
+                    <button
+                      onClick={() => completeMutation.mutate(row)}
+                      disabled={completeMutation.isPending}
+                      className="p-2 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                      title="Oznacz jako ukończony i wystaw certyfikat"
+                    >
+                      <Award className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   <button
                     onClick={() => revokeMutation.mutate(row)}
                     className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"

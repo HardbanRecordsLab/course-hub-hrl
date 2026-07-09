@@ -3,6 +3,7 @@ import { ExternalLink, BookOpen, CalendarClock, Loader2, Award } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { apiGet } from "@/lib/api";
 
 type AccessWithCourse = {
@@ -31,6 +32,7 @@ type Certificate = {
 
 export default function StudentPortal() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["my-access", user?.id],
@@ -46,8 +48,8 @@ export default function StudentPortal() {
 
   const certByCourseId = new Map(certificates.map((c) => [c.courseId, c]));
 
-  const openCourse = async (courseId: string, url: string) => {
-    window.open(url, "_blank");
+  const openCourse = (courseId: string) => {
+    navigate(`/course/${courseId}`);
   };
 
   return (
@@ -137,7 +139,7 @@ export default function StudentPortal() {
                     )}
                       <Button
                         className="gap-2 shadow-[0_4px_20px_-4px_hsl(160_84%_44%_/_0.3)]"
-                        onClick={() => openCourse(course.id, course.externalUrl)}
+                        onClick={() => openCourse(course.id)}
                       >
                         Otwórz kurs <ExternalLink className="w-4 h-4" />
                       </Button>

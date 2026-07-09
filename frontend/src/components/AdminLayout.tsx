@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const adminNavItems = [
-  { to: "/", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/courses", icon: BookOpen, label: "Kursy" },
   { to: "/users", icon: Users, label: "Użytkownicy" },
   { to: "/access", icon: KeySquare, label: "Dostępy" },
@@ -70,7 +70,7 @@ export default function AdminLayout() {
             <NavLink
               key={to}
               to={to}
-              end={to === "/" || to === "/portal"}
+              end={to === "/dashboard" || to === "/portal"}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                   isActive
@@ -136,7 +136,7 @@ export default function AdminLayout() {
                 <NavLink
                   key={to}
                   to={to}
-                  end={to === "/" || to === "/portal"}
+                  end={to === "/dashboard" || to === "/portal"}
                   onClick={() => setMobileOpen(false)}
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
