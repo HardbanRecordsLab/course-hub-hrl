@@ -20,7 +20,7 @@ type Course = {
 
 function formatPrice(cents: number, currency: string) {
   if (cents === 0) return "Darmowy";
-  return ${'$'}{(cents / 100).toFixed(2)} {currency};
+  return `${(cents / 100).toFixed(2)} ${currency}`;
 }
 
 export default function LandingPage() {
