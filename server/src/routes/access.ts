@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma";
 import { requireAdmin, requireAuth } from "../middleware/auth";
 import { logAccess } from "./logs";
+import { grantAccessSchema } from "../lib/validate";
 
 export const accessRouter = Router();
 
@@ -58,22 +59,23 @@ accessRouter.get("/mine", requireAuth, async (req: Request, res: Response) => {
 
 accessRouter.post("/", requireAuth, requireAdmin, async (req: Request, res: Response) => {
   try {
-    const { userId, courseId, expiresAt, source } = req.body ?? {};
-    if (!userId || !courseId) {
-      res.status(400).json({ message: "userId and courseId are required" });
+    const parsed = grantAccessSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: parsed.error.errors[0]?.message ?? "Invalid input" });
       return;
     }
+    const { userId, courseId, expiresAt, source } = parsed.data;
 
     const enrollment = await prisma.enrollment.create({
       data: {
-        userId: String(userId),
-        courseId: String(courseId),
-        source: String(source ?? "admin"),
+        userId,
+        courseId,
+        source: source ?? "admin",
         accessEndsAt: expiresAt ? new Date(expiresAt) : null,
       },
     });
 
-    await logAccess(String(userId), String(courseId), "granted", { source: source ?? "admin" });
+    await logAccess(userId, courseId, "granted", { source: source ?? "admin" });
     res.status(201).json(enrollment);
   } catch (err) {
     if (isNotFound(err)) {

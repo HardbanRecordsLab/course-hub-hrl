@@ -2,6 +2,7 @@ import { Request, Response, Router } from "express";
 import { stripe } from "../lib/stripe";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/auth";
+import { checkoutSchema } from "../lib/validate";
 
 export const checkoutRouter = Router();
 
@@ -11,11 +12,12 @@ function isNotFound(err: unknown): boolean {
 
 checkoutRouter.post("/", requireAuth, async (req: Request, res: Response) => {
   try {
-    const { courseId } = req.body ?? {};
-    if (!courseId) {
-      res.status(400).json({ message: "courseId is required" });
+    const parsed = checkoutSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: parsed.error.errors[0]?.message ?? "Invalid input" });
       return;
     }
+    const { courseId } = parsed.data;
 
     const course = await prisma.course.findUnique({ where: { id: courseId } });
     if (!course) {

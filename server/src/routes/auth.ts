@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma";
 import { requireAuth, signSessionToken } from "../middleware/auth";
 import { authLimiter, registerLimiter, speedLimiter } from "../middleware/rateLimit";
+import { loginSchema, registerSchema } from "../lib/validate";
 
 export const authRouter = Router();
 
@@ -10,21 +11,21 @@ const SALT_ROUNDS = 12;
 
 authRouter.post("/register", registerLimiter, async (req: Request, res: Response) => {
   try {
-    const { email, password, name } = req.body ?? {};
-
-    if (!email || !password) {
-      res.status(400).json({ message: "Email and password are required" });
+    const parsed = registerSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: parsed.error.errors[0]?.message ?? "Invalid input" });
       return;
     }
+    const { email, password, name } = parsed.data;
 
-    const normalizedEmail = String(email).toLowerCase().trim();
+    const normalizedEmail = email.toLowerCase().trim();
     const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (existing) {
       res.status(409).json({ message: "User with this email already exists" });
       return;
     }
 
-    const passwordHash = await bcrypt.hash(String(password), SALT_ROUNDS);
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const user = await prisma.user.create({
       data: { email: normalizedEmail, passwordHash, name: name ?? null },
     });
@@ -43,14 +44,14 @@ authRouter.post("/register", registerLimiter, async (req: Request, res: Response
 
 authRouter.post("/login", authLimiter, speedLimiter, async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body ?? {};
-
-    if (!email || !password) {
-      res.status(400).json({ message: "Email and password are required" });
+    const parsed = loginSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: parsed.error.errors[0]?.message ?? "Invalid input" });
       return;
     }
+    const { email, password } = parsed.data;
 
-    const normalizedEmail = String(email).toLowerCase().trim();
+    const normalizedEmail = email.toLowerCase().trim();
     const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (!user || !user.passwordHash) {
       res.status(401).json({ message: "Invalid credentials" });
@@ -62,7 +63,7 @@ authRouter.post("/login", authLimiter, speedLimiter, async (req: Request, res: R
       return;
     }
 
-    const valid = await bcrypt.compare(String(password), user.passwordHash);
+    const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
       res.status(401).json({ message: "Invalid credentials" });
       return;

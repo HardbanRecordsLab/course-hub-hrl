@@ -2,6 +2,7 @@ import { Request, Response, Router } from "express";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { requireAdmin, requireAuth } from "../middleware/auth";
+import { updateUserSchema } from "../lib/validate";
 
 export const usersRouter = Router();
 
@@ -33,12 +34,17 @@ usersRouter.get("/", requireAuth, requireAdmin, async (_req: Request, res: Respo
 
 usersRouter.patch("/:id", requireAuth, requireAdmin, async (req: Request, res: Response) => {
   try {
-    const { name, role, isActive } = req.body ?? {};
+    const parsed = updateUserSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: parsed.error.errors[0]?.message ?? "Invalid input" });
+      return;
+    }
+    const { name, role, isActive } = parsed.data;
     const data: Prisma.UserUpdateInput = {};
 
     if (name !== undefined) data.name = name ?? null;
     if (role !== undefined) data.role = role as Prisma.UserUpdateInput["role"];
-    if (isActive !== undefined) data.isActive = Boolean(isActive);
+    if (isActive !== undefined) data.isActive = isActive;
 
     const id = Array.isArray(req.params.id) ? (req.params.id[0] ?? "") : (req.params.id ?? "");
     const user = await prisma.user.update({ where: { id }, data });

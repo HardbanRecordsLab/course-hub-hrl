@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma";
 import { requireAdmin, requireAuth } from "../middleware/auth";
+import { createCourseSchema, updateCourseSchema } from "../lib/validate";
 
 export const coursesRouter = Router();
 
@@ -76,6 +77,12 @@ coursesRouter.get("/", requireAuth, async (_req: Request, res: Response) => {
 
 coursesRouter.post("/", requireAuth, requireAdmin, async (req: Request, res: Response) => {
   try {
+    const parsed = createCourseSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: parsed.error.errors[0]?.message ?? "Invalid input" });
+      return;
+    }
+
     const {
       title,
       description,
@@ -86,12 +93,7 @@ coursesRouter.post("/", requireAuth, requireAdmin, async (req: Request, res: Res
       status,
       certificateEnabled,
       certificateIssueMode,
-    } = req.body ?? {};
-
-    if (!title || !externalUrl) {
-      res.status(400).json({ message: "title and externalUrl are required" });
-      return;
-    }
+    } = parsed.data;
 
     const rawStatus = status ?? "DRAFT";
     if (!COURSE_STATUSES.includes(rawStatus)) {
@@ -100,14 +102,14 @@ coursesRouter.post("/", requireAuth, requireAdmin, async (req: Request, res: Res
     }
 
     const data: Prisma.CourseCreateInput = {
-      title: String(title),
+      title,
       description: description ?? null,
       imageUrl: imageUrl ?? null,
-      externalUrl: String(externalUrl),
-      priceCents: typeof priceCents === "number" ? priceCents : Number(priceCents ?? 0),
+      externalUrl,
+      priceCents: priceCents ?? 0,
       currency: currency ?? "PLN",
       status: rawStatus as Prisma.CourseCreateInput["status"],
-      certificateEnabled: Boolean(certificateEnabled),
+      certificateEnabled: certificateEnabled ?? false,
       certificateIssueMode: certificateIssueMode ?? "manual",
     };
 
@@ -122,17 +124,22 @@ coursesRouter.post("/", requireAuth, requireAdmin, async (req: Request, res: Res
 coursesRouter.patch("/:id", requireAuth, requireAdmin, async (req: Request, res: Response) => {
   try {
     const id = Array.isArray(req.params.id) ? (req.params.id[0] ?? "") : (req.params.id ?? "");
-    const body = req.body ?? {};
+    const parsed = updateCourseSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: parsed.error.errors[0]?.message ?? "Invalid input" });
+      return;
+    }
 
     const data: Prisma.CourseUpdateInput = {};
-    if (body.title !== undefined) data.title = String(body.title);
+    const body = parsed.data;
+    if (body.title !== undefined) data.title = body.title;
     if (body.description !== undefined) data.description = body.description ?? null;
     if (body.imageUrl !== undefined) data.imageUrl = body.imageUrl ?? null;
-    if (body.externalUrl !== undefined) data.externalUrl = String(body.externalUrl);
-    if (body.priceCents !== undefined) data.priceCents = Number(body.priceCents);
-    if (body.currency !== undefined) data.currency = String(body.currency);
-    if (body.certificateEnabled !== undefined) data.certificateEnabled = Boolean(body.certificateEnabled);
-    if (body.certificateIssueMode !== undefined) data.certificateIssueMode = String(body.certificateIssueMode);
+    if (body.externalUrl !== undefined) data.externalUrl = body.externalUrl;
+    if (body.priceCents !== undefined) data.priceCents = body.priceCents;
+    if (body.currency !== undefined) data.currency = body.currency;
+    if (body.certificateEnabled !== undefined) data.certificateEnabled = body.certificateEnabled;
+    if (body.certificateIssueMode !== undefined) data.certificateIssueMode = body.certificateIssueMode;
     if (body.integrationSecretHash !== undefined) data.integrationSecretHash = body.integrationSecretHash ?? null;
 
     if (body.status !== undefined) {

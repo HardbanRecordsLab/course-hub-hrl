@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
+import helmet from "helmet";
 
 import { authRouter } from "./routes/auth";
 import { coursesRouter } from "./routes/courses";
@@ -14,24 +15,32 @@ import { logsRouter } from "./routes/logs";
 const app = express();
 
 const PORT = Number(process.env.PORT ?? 3001);
-const CORS_ORIGIN = process.env.CORS_ORIGIN ?? "http://localhost:5173";
+const NODE_ENV = process.env.NODE_ENV ?? "development";
+const CORS_ORIGIN = process.env.CORS_ORIGIN;
 
-const allowedOrigins = CORS_ORIGIN.split(",").map((origin) => origin.trim());
+if (NODE_ENV === "production" && !CORS_ORIGIN) {
+  throw new Error("CORS_ORIGIN environment variable is required in production");
+}
+
+const allowedOrigins = (CORS_ORIGIN ?? "http://localhost:5173")
+  .split(",")
+  .map((origin) => origin.trim());
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin) || CORS_ORIGIN === "*") {
+      if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(null, false);
+        callback(new Error("Not allowed by CORS"));
       }
     },
     credentials: true,
   })
 );
 
+app.use(helmet());
 app.use("/api/webhooks", express.raw({ type: "application/json" }), webhooksRouter);
-
 app.use(express.json());
 
 app.get("/api/health", (_req: Request, res: Response) => {
