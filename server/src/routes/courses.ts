@@ -26,6 +26,28 @@ coursesRouter.get("/admin", requireAuth, requireAdmin, async (_req: Request, res
   }
 });
 
+coursesRouter.get("/public/published", async (_req: Request, res: Response) => {
+  try {
+    const courses = await prisma.course.findMany({
+      where: { status: "PUBLISHED" },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        imageUrl: true,
+        priceCents: true,
+        currency: true,
+        certificateEnabled: true,
+      },
+    });
+    res.json(courses);
+  } catch (err) {
+    console.error("courses public error", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 coursesRouter.get("/", requireAuth, async (_req: Request, res: Response) => {
   try {
     const courses = await prisma.course.findMany({

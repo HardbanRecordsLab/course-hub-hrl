@@ -30,7 +30,7 @@ export default function LandingPage() {
   const [buyingId, setBuyingId] = useState<string | null>(null);
   const { data: courses = [], isLoading } = useQuery({
     queryKey: ["public-courses"],
-    queryFn: async () => apiGet<Course[]>("/api/courses"),
+    queryFn: async () => apiGet<Course[]>("/api/courses/public/published"),
   });
 
   const handleBuy = async (courseId: string) => {
