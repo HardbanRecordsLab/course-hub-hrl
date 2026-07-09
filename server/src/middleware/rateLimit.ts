@@ -21,5 +21,5 @@ export const registerLimiter = rateLimit({
 export const speedLimiter = slowDown({
   windowMs: 15 * 60 * 1000,
   delayAfter: 5,
-  delayMs: 500,
+  delayMs: () => 500,
 });
