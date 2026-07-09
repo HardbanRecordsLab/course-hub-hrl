@@ -1,9 +1,12 @@
-import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+﻿import { motion } from "framer-motion";
+import { Link, useNavigate } from "react-router-dom";
 import { Zap, BookOpen, Award, Users, ArrowRight, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
-import { apiGet } from "@/lib/api";
+import { apiGet, apiPost } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 type Course = {
   id: string;
@@ -17,14 +20,35 @@ type Course = {
 
 function formatPrice(cents: number, currency: string) {
   if (cents === 0) return "Darmowy";
-  return `${(cents / 100).toFixed(2)} ${currency}`;
+  return ${'$'}{(cents / 100).toFixed(2)} {currency};
 }
 
 export default function LandingPage() {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [buyingId, setBuyingId] = useState<string | null>(null);
   const { data: courses = [], isLoading } = useQuery({
     queryKey: ["public-courses"],
     queryFn: async () => apiGet<Course[]>("/api/courses"),
   });
+
+  const handleBuy = async (courseId: string) => {
+    if (!isAuthenticated) {
+      navigate("/register");
+      return;
+    }
+    setBuyingId(courseId);
+    try {
+      const { url } = await apiPost<{ url: string }>("/api/checkout", { courseId });
+      if (url) window.location.href = url;
+      else throw new Error("Brak URL sesji checkout");
+    } catch (err) {
+      toast({ title: "Błąd płatności", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setBuyingId(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -44,12 +68,14 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-3">
             <Link to="/login">
-              <Button variant="ghost" size="sm">
-                Zaloguj się
+              <Button asChild variant="ghost" size="sm">
+                <span>Zaloguj się</span>
               </Button>
             </Link>
             <Link to="/register">
-              <Button size="sm">Rejestracja</Button>
+              <Button asChild size="sm">
+                <span>Rejestracja</span>
+              </Button>
             </Link>
           </div>
         </div>
@@ -72,13 +98,13 @@ export default function LandingPage() {
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link to="/register">
-              <Button size="lg" className="gap-2">
-                Zacznij teraz <ArrowRight className="w-4 h-4" />
+              <Button asChild size="lg" className="gap-2">
+                <span>Zacznij teraz <ArrowRight className="w-4 h-4" /></span>
               </Button>
             </Link>
             <a href="#courses">
-              <Button variant="outline" size="lg">
-                Zobacz kursy
+              <Button asChild variant="outline" size="lg">
+                <span>Zobacz kursy</span>
               </Button>
             </a>
           </div>
@@ -149,11 +175,7 @@ export default function LandingPage() {
                 className="rounded-xl bg-card border border-border overflow-hidden hover:border-primary/30 transition-all group"
               >
                 {course.imageUrl ? (
-                  <img
-                    src={course.imageUrl}
-                    alt=""
-                    className="w-full h-48 object-cover"
-                  />
+                  <img src={course.imageUrl} alt="" className="w-full h-48 object-cover" />
                 ) : (
                   <div className="w-full h-48 bg-ch-surface-2 flex items-center justify-center">
                     <BookOpen className="w-12 h-12 text-muted-foreground" />
@@ -162,9 +184,7 @@ export default function LandingPage() {
                 <div className="p-5">
                   <h3 className="text-lg font-semibold mb-2 line-clamp-2">{course.title}</h3>
                   {course.description && (
-                    <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
-                      {course.description}
-                    </p>
+                    <p className="text-sm text-muted-foreground mb-4 line-clamp-3">{course.description}</p>
                   )}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -172,16 +192,12 @@ export default function LandingPage() {
                         {formatPrice(course.priceCents, course.currency)}
                       </span>
                       {course.certificateEnabled && (
-                        <span className="text-[11px] px-2 py-0.5 rounded bg-ch-purple/10 text-ch-purple border border-ch-purple/20">
-                          Certyfikat
-                        </span>
+                        <span className="text-[11px] px-2 py-0.5 rounded bg-ch-purple/10 text-ch-purple border border-ch-purple/20">Certyfikat</span>
                       )}
                     </div>
-                    <Link to="/register">
-                      <Button size="sm" variant="outline" className="gap-2">
-                        Kup <ArrowRight className="w-3 h-3" />
-                      </Button>
-                    </Link>
+                    <Button size="sm" variant="outline" className="gap-2" disabled={buyingId === course.id} onClick={() => handleBuy(course.id)}>
+                      {buyingId === course.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <>Kup <ArrowRight className="w-3 h-3" /></>}
+                    </Button>
                   </div>
                 </div>
               </motion.div>
@@ -198,8 +214,8 @@ export default function LandingPage() {
             Dołącz do HRL Course Hub i zacznij rozwijać swoje umiejętności już dziś.
           </p>
           <Link to="/register">
-            <Button size="lg" className="gap-2">
-              Utwórz konto <ArrowRight className="w-4 h-4" />
+            <Button asChild size="lg" className="gap-2">
+              <span>Utwórz konto <ArrowRight className="w-4 h-4" /></span>
             </Button>
           </Link>
         </div>
@@ -216,16 +232,10 @@ export default function LandingPage() {
               <span className="text-sm font-semibold">HRL Course Hub</span>
             </div>
             <div className="flex items-center gap-6 text-sm text-muted-foreground">
-              <Link to="/verify" className="hover:text-foreground transition-colors">
-                Weryfikacja certyfikatów
-              </Link>
-              <Link to="/login" className="hover:text-foreground transition-colors">
-                Logowanie
-              </Link>
+              <Link to="/verify" className="hover:text-foreground transition-colors">Weryfikacja certyfikatów</Link>
+              <Link to="/login" className="hover:text-foreground transition-colors">Logowanie</Link>
             </div>
-            <p className="text-xs text-muted-foreground">
-              © {new Date().getFullYear()} HRL Course Hub
-            </p>
+            <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} HRL Course Hub</p>
           </div>
         </div>
       </footer>

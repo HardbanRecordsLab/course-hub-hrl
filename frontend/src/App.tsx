@@ -1,4 +1,4 @@
-import { Toaster } from "@/components/ui/toaster";
+﻿import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -19,6 +19,8 @@ import CourseViewer from "./pages/CourseViewer";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import VerifyCertificatePage from "./pages/VerifyCertificatePage";
+import CheckoutSuccessPage from "./pages/CheckoutSuccessPage";
+import CheckoutCancelPage from "./pages/CheckoutCancelPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -57,6 +59,8 @@ function AppRoutes() {
         <Route path="/course/:id" element={<ProtectedRoute allowedRoles={["admin", "student"]}><CourseViewer /></ProtectedRoute>} />
       </Route>
       <Route path="/verify/:code" element={<VerifyCertificatePage />} />
+      <Route path="/checkout/success" element={<CheckoutSuccessPage />} />
+      <Route path="/checkout/cancel" element={<CheckoutCancelPage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
