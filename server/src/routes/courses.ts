@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma";
 import { requireAdmin, requireAuth } from "../middleware/auth";
 import { createCourseSchema, updateCourseSchema } from "../lib/validate";
+import { parsePagination } from "../lib/pagination";
 
 export const coursesRouter = Router();
 
@@ -14,61 +15,79 @@ function isNotFound(err: unknown): boolean {
   return (err as { code?: string }).code === "P2025";
 }
 
-coursesRouter.get("/admin", requireAuth, requireAdmin, async (_req: Request, res: Response) => {
+coursesRouter.get("/admin", requireAuth, requireAdmin, async (req: Request, res: Response) => {
   try {
-    const courses = await prisma.course.findMany({
-      orderBy: { createdAt: "desc" },
-      include: { _count: { select: { enrollments: true } } },
-    });
-    res.json(courses);
+    const { page, limit, skip } = parsePagination(req.query);
+    const [courses, total] = await Promise.all([
+      prisma.course.findMany({
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+        include: { _count: { select: { enrollments: true } } },
+      }),
+      prisma.course.count(),
+    ]);
+    res.json({ data: courses, page, limit, total, totalPages: Math.ceil(total / limit) });
   } catch (err) {
     console.error("courses admin error", err);
     res.status(500).json({ message: "Internal server error" });
   }
 });
 
-coursesRouter.get("/public/published", async (_req: Request, res: Response) => {
+coursesRouter.get("/public/published", async (req: Request, res: Response) => {
   try {
-    const courses = await prisma.course.findMany({
-      where: { status: "PUBLISHED" },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        imageUrl: true,
-        priceCents: true,
-        currency: true,
-        certificateEnabled: true,
-      },
-    });
-    res.json(courses);
+    const { page, limit, skip } = parsePagination(req.query);
+    const [courses, total] = await Promise.all([
+      prisma.course.findMany({
+        where: { status: "PUBLISHED" },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          imageUrl: true,
+          priceCents: true,
+          currency: true,
+          certificateEnabled: true,
+        },
+      }),
+      prisma.course.count({ where: { status: "PUBLISHED" } }),
+    ]);
+    res.json({ data: courses, page, limit, total, totalPages: Math.ceil(total / limit) });
   } catch (err) {
     console.error("courses public error", err);
     res.status(500).json({ message: "Internal server error" });
   }
 });
 
-coursesRouter.get("/", requireAuth, async (_req: Request, res: Response) => {
+coursesRouter.get("/", requireAuth, async (req: Request, res: Response) => {
   try {
-    const courses = await prisma.course.findMany({
-      where: { status: "PUBLISHED" },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        imageUrl: true,
-        externalUrl: true,
-        priceCents: true,
-        currency: true,
-        certificateEnabled: true,
-        certificateIssueMode: true,
-        accessType: true,
-        accessDays: true,
-      },
-    });
-    res.json(courses);
+    const { page, limit, skip } = parsePagination(req.query);
+    const [courses, total] = await Promise.all([
+      prisma.course.findMany({
+        where: { status: "PUBLISHED" },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          imageUrl: true,
+          externalUrl: true,
+          priceCents: true,
+          currency: true,
+          certificateEnabled: true,
+          certificateIssueMode: true,
+          accessType: true,
+          accessDays: true,
+        },
+      }),
+      prisma.course.count({ where: { status: "PUBLISHED" } }),
+    ]);
+    res.json({ data: courses, page, limit, total, totalPages: Math.ceil(total / limit) });
   } catch (err) {
     console.error("courses list error", err);
     res.status(500).json({ message: "Internal server error" });

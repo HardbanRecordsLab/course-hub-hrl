@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma";
 import { requireAdmin, requireAuth } from "../middleware/auth";
 import { logAccess } from "./logs";
 import { grantAccessSchema } from "../lib/validate";
+import { parsePagination } from "../lib/pagination";
 
 export const accessRouter = Router();
 
@@ -29,13 +30,19 @@ function paramId(req: Request): string {
   return Array.isArray(id) ? (id[0] ?? "") : (id ?? "");
 }
 
-accessRouter.get("/", requireAuth, requireAdmin, async (_req: Request, res: Response) => {
+accessRouter.get("/", requireAuth, requireAdmin, async (req: Request, res: Response) => {
   try {
-    const enrollments = await prisma.enrollment.findMany({
-      orderBy: { createdAt: "desc" },
-      include: { user: true, course: true },
-    });
-    res.json(enrollments);
+    const { page, limit, skip } = parsePagination(req.query);
+    const [enrollments, total] = await Promise.all([
+      prisma.enrollment.findMany({
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+        include: { user: true, course: true },
+      }),
+      prisma.enrollment.count(),
+    ]);
+    res.json({ data: enrollments, page, limit, total, totalPages: Math.ceil(total / limit) });
   } catch (err) {
     console.error("access list error", err);
     res.status(500).json({ message: "Internal server error" });
@@ -44,13 +51,19 @@ accessRouter.get("/", requireAuth, requireAdmin, async (_req: Request, res: Resp
 
 accessRouter.get("/mine", requireAuth, async (req: Request, res: Response) => {
   try {
-    const enrollments = await prisma.enrollment.findMany({
-      where: { userId: req.user!.id, status: "ACTIVE" },
-      orderBy: { createdAt: "desc" },
-      include: { course: true },
-    });
+    const { page, limit, skip } = parsePagination(req.query);
+    const [enrollments, total] = await Promise.all([
+      prisma.enrollment.findMany({
+        where: { userId: req.user!.id, status: "ACTIVE" },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+        include: { course: true },
+      }),
+      prisma.enrollment.count({ where: { userId: req.user!.id, status: "ACTIVE" } }),
+    ]);
     const active = enrollments.filter(isActive);
-    res.json(active);
+    res.json({ data: active, page, limit, total, totalPages: Math.ceil(total / limit) });
   } catch (err) {
     console.error("access mine error", err);
     res.status(500).json({ message: "Internal server error" });

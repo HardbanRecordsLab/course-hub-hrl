@@ -12,7 +12,8 @@ function authHeaders() {
 export async function apiGet<T = any>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, { headers: { "Content-Type": "application/json", ...authHeaders() } });
   if (!res.ok) throw new Error((await res.json()).message || `GET ${path} failed`);
-  return res.json();
+  const json = await res.json();
+  return (json && typeof json.data !== "undefined") ? (json.data as T) : (json as T);
 }
 
 export async function apiPost<T = any>(path: string, body: any): Promise<T> {

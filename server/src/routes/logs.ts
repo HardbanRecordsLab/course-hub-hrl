@@ -2,6 +2,7 @@ import { Request, Response, Router } from "express";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { requireAdmin, requireAuth } from "../middleware/auth";
+import { parsePagination } from "../lib/pagination";
 
 export const logsRouter = Router();
 
@@ -18,16 +19,17 @@ export async function logAccess(
 
 logsRouter.get("/", requireAuth, requireAdmin, async (req: Request, res: Response) => {
   try {
-    const limitRaw = Number(req.query.limit ?? 100);
-    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(Math.floor(limitRaw), 1000) : 100;
-
-    const logs = await prisma.accessLog.findMany({
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      include: { user: true, course: true },
-    });
-
-    res.json(logs);
+    const { page, limit, skip } = parsePagination(req.query);
+    const [logs, total] = await Promise.all([
+      prisma.accessLog.findMany({
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+        include: { user: true, course: true },
+      }),
+      prisma.accessLog.count(),
+    ]);
+    res.json({ data: logs, page, limit, total, totalPages: Math.ceil(total / limit) });
   } catch (err) {
     console.error("logs error", err);
     res.status(500).json({ message: "Internal server error" });

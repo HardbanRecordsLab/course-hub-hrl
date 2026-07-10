@@ -1,16 +1,23 @@
 import { Request, Response, Router } from "express";
 import { prisma } from "../lib/prisma";
 import { requireAdmin, requireAuth } from "../middleware/auth";
+import { parsePagination } from "../lib/pagination";
 
 export const certificatesRouter = Router();
 
-certificatesRouter.get("/", requireAuth, requireAdmin, async (_req: Request, res: Response) => {
+certificatesRouter.get("/", requireAuth, requireAdmin, async (req: Request, res: Response) => {
   try {
-    const certificates = await prisma.certificate.findMany({
-      orderBy: { issuedAt: "desc" },
-      include: { user: true, course: true },
-    });
-    res.json(certificates);
+    const { page, limit, skip } = parsePagination(req.query);
+    const [certificates, total] = await Promise.all([
+      prisma.certificate.findMany({
+        orderBy: { issuedAt: "desc" },
+        skip,
+        take: limit,
+        include: { user: true, course: true },
+      }),
+      prisma.certificate.count(),
+    ]);
+    res.json({ data: certificates, page, limit, total, totalPages: Math.ceil(total / limit) });
   } catch (err) {
     console.error("certificates list error", err);
     res.status(500).json({ message: "Internal server error" });
@@ -19,12 +26,18 @@ certificatesRouter.get("/", requireAuth, requireAdmin, async (_req: Request, res
 
 certificatesRouter.get("/mine", requireAuth, async (req: Request, res: Response) => {
   try {
-    const certificates = await prisma.certificate.findMany({
-      where: { userId: req.user!.id, revokedAt: null },
-      orderBy: { issuedAt: "desc" },
-      include: { course: true },
-    });
-    res.json(certificates);
+    const { page, limit, skip } = parsePagination(req.query);
+    const [certificates, total] = await Promise.all([
+      prisma.certificate.findMany({
+        where: { userId: req.user!.id, revokedAt: null },
+        orderBy: { issuedAt: "desc" },
+        skip,
+        take: limit,
+        include: { course: true },
+      }),
+      prisma.certificate.count({ where: { userId: req.user!.id, revokedAt: null } }),
+    ]);
+    res.json({ data: certificates, page, limit, total, totalPages: Math.ceil(total / limit) });
   } catch (err) {
     console.error("certificates mine error", err);
     res.status(500).json({ message: "Internal server error" });

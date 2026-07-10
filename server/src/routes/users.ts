@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { requireAdmin, requireAuth } from "../middleware/auth";
 import { updateUserSchema } from "../lib/validate";
+import { parsePagination } from "../lib/pagination";
 
 export const usersRouter = Router();
 
@@ -10,22 +11,28 @@ function isNotFound(err: unknown): boolean {
   return (err as { code?: string }).code === "P2025";
 }
 
-usersRouter.get("/", requireAuth, requireAdmin, async (_req: Request, res: Response) => {
+usersRouter.get("/", requireAuth, requireAdmin, async (req: Request, res: Response) => {
   try {
-    const users = await prisma.user.findMany({
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: { select: { enrollments: true } },
-      },
-    });
-    res.json(users);
+    const { page, limit, skip } = parsePagination(req.query);
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: { select: { enrollments: true } },
+        },
+      }),
+      prisma.user.count(),
+    ]);
+    res.json({ data: users, page, limit, total, totalPages: Math.ceil(total / limit) });
   } catch (err) {
     console.error("users list error", err);
     res.status(500).json({ message: "Internal server error" });
