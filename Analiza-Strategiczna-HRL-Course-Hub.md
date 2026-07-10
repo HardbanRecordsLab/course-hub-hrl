@@ -466,17 +466,17 @@ Osoba trzecia → /verify/:code → GET /api/certificates/verify/:code
 
 ### Wysoki priorytet
 - [x] **Refresh token mechanism** — access token 15 min + refresh token 7 dni z unieważnieniem
-- [ ] **HTTPS wymuszenie** — przekierowanie HTTP → HTTPS na nginx/express
-- [ ] **CORS whitelist** — ścisła lista dozwolonych originów zamiast `*`
+- [x] **HTTPS wymuszenie** — przekierowanie HTTP → HTTPS na nginx/express
+- [x] **CORS whitelist** — ścisła lista dozwolonych originów zamiast `*`
 - [ ] **CSRF protection** — ochrona dla POST/PATCH/DELETE
 
 ### Średni priorytet
 - [ ] **Audit log** — logowanie akcji admina (kto, co, kiedy, IP)
 - [ ] **Szyfrowanie danych wrażliwych** — encrypt integrationSecretHash w bazie
-- [ ] **Input sanitization** — ochrona przed XSS
-- [ ] **Blokada konta po N nieudanych logowaniach** — 30-minutowa blokada
+- [x] **Input sanitization** — ochrona przed XSS
+- [x] **Blokada konta po N nieudanych logowaniach** — 30-minutowa blokada
 - [ ] **2FA / MFA** — opcjonalne uwierzytelnianie dwuskładnikowe dla adminów
-- [ ] **Environment variable validation** — walidacja wszystkich wymaganych envów przy starcie
+- [x] **Environment variable validation** — walidacja wszystkich wymaganych envów przy starcie
 
 ---
 
