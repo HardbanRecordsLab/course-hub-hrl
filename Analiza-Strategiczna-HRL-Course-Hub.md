@@ -301,15 +301,15 @@ Osoba trzecia → /verify/:code → GET /api/certificates/verify/:code
 - [x] **Usunąć domyślny JWT secret** — `SESSION_JWT_SECRET` ma hardcodowany fallback: `"hrl_course_hub_session_991823_change_in_production_xyz"`. Rzucić błędem przy starcie, jeśli nie ustawiony.
 - [x] **Dodać rate limiting** — endpointy `/api/auth/login` i `/api/auth/register` bez ograniczenia requestów → podatne na brute-force
 - [x] **Wdrożyć refresh tokeny** — JWT z 7-dniowym ważnością, brak mechanizmu odświeżania/unieważniania
-- [ ] **Wymusić HTTPS** — w kodzie serwera brak enforcement HTTPS
+- [x] **Wymusić HTTPS** — w kodzie serwera brak enforcement HTTPS
 - [x] **Skonfigurować CORS na produkcji** — whitelist originów zamiast `*`
-- [ ] **Dodać null/undefined check dla `req.user`** — w wielu miejscach `req.user!.id` bez gwarancji middleware'a
+- [x] **Dodać null/undefined check dla `req.user`** — w wielu miejscach `req.user!.id` bez gwarancji middleware'a
 
 ### Niedoróbki techniczne
 - [ ] **Zrealizować backend dla panelu integracji** — obecnie tylko mock data w UI, brak rzeczywistych endpointów
-- [ ] **Dodać paginację API** — wszystkie endpointy GET zwracają pełne listy
-- [ ] **Stworzyć dedykowany endpoint statystyk** — Dashboard pobiera wszystkie rekordy z 3 endpointów zamiast zagregowanych danych
-- [ ] **Napisać testy** — tylko 2 pliki szablonowe (`example.test.ts`, `setup.ts`), brak rzeczywistych testów
+- [x] **Dodać paginację API** — wszystkie endpointy GET zwracają pełne listy
+- [x] **Stworzyć dedykowany endpoint statystyk** — Dashboard pobiera wszystkie rekordy z 3 endpointów zamiast zagregowanych danych
+- [x] **Napisać testy** — tylko 2 pliki szablonowe (`example.test.ts`, `setup.ts`), brak rzeczywistych testów
 - [x] **Dodać walidację pól po stronie backendu** — obecnie tylko sprawdzenie czy pole istnieje
 - [x] **Dodać transakcje bazodanowe** — webhook Stripe wykonuje kilka zapisów bez transakcji → ryzyko niespójności
 - [ ] **Poprawić obsługę błędów** — catch all zwraca 500 `Internal server error` bez szczegółów
@@ -323,7 +323,6 @@ Osoba trzecia → /verify/:code → GET /api/certificates/verify/:code
 
 ### Funkcjonalne
 - [ ] **Dodać własne hostowanie treści kursów** — pełna zależność od zewnętrznych platform
-- [ ] **Dodać system powiadomień email** — brak wysyłki emaili po rejestracji, zakupie, przyznaniu dostępu
 - [ ] **Dodać wyszukiwarkę kursów** — brak filtrowania/wyszukiwania w katalogu
 - [ ] **Dodać obsługę wielu walut** — waluta sztywno ustawiona na PLN
 
@@ -338,14 +337,15 @@ Osoba trzecia → /verify/:code → GET /api/certificates/verify/:code
 - [x] Walidacja inputów — Zod/express-validator dla wszystkich pól
 - [x] Transakcje DB — Prisma $transaction w webhooku Stripe
 - [x] Refresh tokeny — krótki access token + długi refresh token
-- [ ] Reset hasła — endpoint do resetowania hasła (email + token)
-- [ ] Potwierdzenie email — weryfikacja emaila po rejestracji
+- [x] Reset hasła — endpoint do resetowania hasła (email + token)
+- [x] Potwierdzenie email — weryfikacja emaila po rejestracji
 - [ ] Konfiguracja integracji — backend CRUD dla integracji zewnętrznych
 - [x] Wysyłka emaili — integracja z providerem email (MailerLite/Brevo)
 - [ ] Webhooki wychodzące — wysyłanie zdarzeń do zewnętrznych systemów
 - [ ] Kursy własne (treść) — hostowanie lekcji, video, PDF
 - [ ] Wielojęzyczność — i18n (react-i18next)
 - [ ] Dashboard dla studenta — statystyki i postępy studenta
+- [x] Health check z monitoringiem DB — `/api/health` zwraca status bazy danych
 
 ### Frontend
 - [ ] Testy komponentów — React Testing Library
