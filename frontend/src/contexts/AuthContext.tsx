@@ -16,7 +16,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,10 +27,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const token = localStorage.getItem("hrl_token");
-    if (token) {
+    const refreshToken = localStorage.getItem("hrl_refresh_token");
+    if (token && refreshToken) {
       apiGet<{ id: string; name: string; email: string; role: string } & Record<string, unknown>>("/api/auth/me")
         .then((u) => setUser({ ...u, role: u.role.toLowerCase() as UserRole }))
-        .catch(() => localStorage.removeItem("hrl_token"))
+        .catch(async () => {
+          try {
+            const data = await apiPost<{ accessToken: string; refreshToken: string; user: { id: string; name: string; email: string; role: string } }>("/api/auth/refresh", { refreshToken });
+            localStorage.setItem("hrl_token", data.accessToken);
+            localStorage.setItem("hrl_refresh_token", data.refreshToken);
+            setUser({ ...data.user, role: data.user.role.toLowerCase() as UserRole });
+          } catch {
+            localStorage.removeItem("hrl_token");
+            localStorage.removeItem("hrl_refresh_token");
+          }
+        })
         .finally(() => setLoading(false));
     } else {
       setLoading(false);
@@ -39,9 +50,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      const data = await apiPost<{ token: string; user: { id: string; name: string; email: string; role: string } }>("/api/auth/login", { email, password });
+      const data = await apiPost<{ token: string; refreshToken: string; user: { id: string; name: string; email: string; role: string } }>("/api/auth/login", { email, password });
       const role = data.user.role.toLowerCase() as UserRole;
       localStorage.setItem("hrl_token", data.token);
+      localStorage.setItem("hrl_refresh_token", data.refreshToken);
       setUser({ ...data.user, role });
       return { success: true };
     } catch (e: any) {
@@ -51,15 +63,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = async (name: string, email: string, password: string) => {
     try {
-      const data = await apiPost<{ id: string; email: string; name: string | null; role: string }>("/api/auth/register", { name, email, password });
+      const data = await apiPost<{ token: string; refreshToken: string; user: { id: string; name: string; email: string; role: string } }>("/api/auth/register", { name, email, password });
+      const role = data.user.role.toLowerCase() as UserRole;
+      localStorage.setItem("hrl_token", data.token);
+      localStorage.setItem("hrl_refresh_token", data.refreshToken);
+      setUser({ ...data.user, role });
       return { success: true };
     } catch (e: any) {
       return { success: false, error: e.message || "Błąd rejestracji" };
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const refreshToken = localStorage.getItem("hrl_refresh_token");
+    try {
+      await apiPost(`/api/auth/refresh/logout`, { refreshToken });
+    } catch {}
     localStorage.removeItem("hrl_token");
+    localStorage.removeItem("hrl_refresh_token");
     setUser(null);
   };
 
