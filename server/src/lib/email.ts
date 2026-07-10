@@ -50,6 +50,33 @@ export async function sendMail(message: MailMessage): Promise<boolean> {
   }
 }
 
+export async function sendPasswordResetEmail(email: string, name: string | null, resetLink: string): Promise<boolean> {
+  const displayName = name ?? email;
+  const subject = "Resetowanie hasła — HRL Course Hub";
+  const html = `
+    <p>Cześć ${displayName},</p>
+    <p>Otrzymaliśmy prośbę o zresetowanie hasła do Twojego konta HRL Course Hub.</p>
+    <p>Kliknij poniższy link, aby ustawić nowe hasło:</p>
+    <p><a href="${resetLink}" style="display:inline-block;padding:10px 20px;background:#6366f1;color:#fff;text-decoration:none;border-radius:6px;margin:10px 0;">Resetuj hasło</a></p>
+    <p>Link wygasa za 1 godzinę. Jeśli nie prosiłeś o reset, zignoruj tę wiadomość.</p>
+    <p>— Zespół HRL Course Hub</p>
+  `;
+  return sendMail({ to: email, subject, html });
+}
+
+export async function sendEmailVerification(email: string, name: string | null, verificationLink: string): Promise<boolean> {
+  const displayName = name ?? email;
+  const subject = "Potwierdź swój email — HRL Course Hub";
+  const html = `
+    <p>Cześć ${displayName},</p>
+    <p>Dziękujemy za rejestrację! Aby aktywować konto, potwierdź swój adres email:</p>
+    <p><a href="${verificationLink}" style="display:inline-block;padding:10px 20px;background:#6366f1;color:#fff;text-decoration:none;border-radius:6px;margin:10px 0;">Potwierdź email</a></p>
+    <p>Link wygasa za 24 godziny.</p>
+    <p>— Zespół HRL Course Hub</p>
+  `;
+  return sendMail({ to: email, subject, html });
+}
+
 export async function sendWelcomeEmail(email: string, name: string | null): Promise<boolean> {
   const displayName = name ?? email;
   const subject = "Witaj na HRL Course Hub!";

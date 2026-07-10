@@ -4,6 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 
 import { validateEnv } from "./lib/env";
+import { prisma } from "./lib/prisma";
 import { authRouter } from "./routes/auth";
 import { coursesRouter } from "./routes/courses";
 import { accessRouter } from "./routes/access";
@@ -62,8 +63,25 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   next();
 });
 
-app.get("/api/health", (_req: Request, res: Response) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+app.get("/api/health", async (_req: Request, res: Response) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({
+      status: "ok",
+      timestamp: new Date().toISOString(),
+      env: config.NODE_ENV,
+      database: "connected",
+      version: process.env.npm_package_version ?? "1.0.0",
+    });
+  } catch (err) {
+    console.error("health check db error", err);
+    res.status(503).json({
+      status: "degraded",
+      timestamp: new Date().toISOString(),
+      env: config.NODE_ENV,
+      database: "disconnected",
+    });
+  }
 });
 
 app.use("/api/auth", authRouter);

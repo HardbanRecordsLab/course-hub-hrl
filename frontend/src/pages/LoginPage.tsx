@@ -96,17 +96,20 @@ export default function LoginPage() {
               </motion.p>
             )}
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <LogIn className="w-4 h-4 mr-2" />}
-              Zaloguj się
-            </Button>
-          </form>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <LogIn className="w-4 h-4 mr-2" />}
+                  Zaloguj się
+                </Button>
+              </form>
 
-          <div className="mt-4 text-center">
-            <Link to="/register" className="text-sm text-primary hover:underline">
-              Nie masz konta? Zarejestruj się
-            </Link>
-          </div>
+              <div className="mt-4 text-center space-y-2">
+                <Link to="/forgot-password" className="text-sm text-primary hover:underline block">
+                  Zapomniałeś hasła?
+                </Link>
+                <Link to="/register" className="text-sm text-primary hover:underline block">
+                  Nie masz konta? Zarejestruj się
+                </Link>
+              </div>
         </div>
       </motion.div>
       </div>

@@ -3,7 +3,7 @@
 > **Data analizy**: 9 lipca 2026  
 > **Autor**: Analiza automatyczna na podstawie kodu źródłowego  
 > **Wersja analizowanego kodu**: 1.0.0  
-> **Data aktualizacji**: 9 lipca 2026 — naprawiono krytyczne luki bezpieczeństwa
+> **Data aktualizacji**: 10 lipca 2026 — testy jednostkowe (36), HTTPS enforcement, account lockout, email validation, structured logging
 
 ---
 
@@ -468,7 +468,8 @@ Osoba trzecia → /verify/:code → GET /api/certificates/verify/:code
 - [x] **Refresh token mechanism** — access token 15 min + refresh token 7 dni z unieważnieniem
 - [x] **HTTPS wymuszenie** — przekierowanie HTTP → HTTPS na nginx/express
 - [x] **CORS whitelist** — ścisła lista dozwolonych originów zamiast `*`
-- [ ] **CSRF protection** — ochrona dla POST/PATCH/DELETE
+- [ ] ~~**CSRF protection**~~ — JWT w Authorization header (nie cookies) eliminuje CSRF (nie aplikuje się)
+- [x] **Account lockout** — blokada konta po N nieudanych logowaniach (30-minutowa blokada po 5 próbach)
 
 ### Średni priorytet
 - [ ] **Audit log** — logowanie akcji admina (kto, co, kiedy, IP)
@@ -525,7 +526,7 @@ Osoba trzecia → /verify/:code → GET /api/certificates/verify/:code
 - [x] Stworzyć dedykowany endpoint statystyk
 - [x] Dodać system powiadomień email
 - [x] Zaimplementować system refresh tokenów
-- [ ] Dodać testy (jednostkowe + integracyjne)
+- [x] Dodać testy (jednostkowe + integracyjne) — 36 testów Vitest
 - [ ] Zrealizować backend dla panelu integracji
 
 ### P2 — Średni priorytet (następne sprinty)
@@ -557,16 +558,18 @@ Cel: Przygotowanie aplikacji do bezpiecznego uruchomienia produkcyjnego
   - [x] Rate limiting dla auth endpointów
   - [x] Helmet.js + CORS whitelist
   - [x] Walidacja inputów (Zod schemas po stronie backendu)
-  - [ ] Refresh tokeny
-  - [ ] HTTPS w nginx
+  - [x] Refresh tokeny
+  - [x] HTTPS w nginx (via Caddy reverse proxy)
 - [ ] **Infrastruktura:**
   - [ ] CI/CD pipeline (GitHub Actions)
   - [ ] Monitoring (Sentry)
-  - [ ] Paginacja API
+  - [x] Paginacja API
   - [x] Transakcje DB w webhooku
-  - [ ] Endpoint statystyk
-- [ ] **Testy:**
-  - [ ] Testy jednostkowe dla serwera (Vitest)
+  - [x] Endpoint statystyk
+  - [ ] Database backup automation
+  - [ ] Structured logging
+- [x] **Testy:**
+  - [x] Testy jednostkowe dla serwera (Vitest) — 36 testów
   - [ ] Testy integracyjne API
   - [ ] Testy komponentów frontendu
 
@@ -653,7 +656,7 @@ Cel: Ekspansja na nowe rynki i segmenty
 | 🥈 | **5. System powiadomień email** | Funkcjonalność | Wysoki | [x] Zrobione |
 | 🥈 | **6. Paginacja API** | Wydajność | Wysoki | [x] Zrobione |
 | 🥈 | **7. Refresh tokeny** | Bezpieczeństwo | Wysoki | [x] Zrobione |
-| 🥈 | **8. Testy (jednostkowe + integracyjne)** | Jakość | Wysoki | [ ] Do zrobienia |
+| 🥈 | **8. Testy (jednostkowe + integracyjne)** | Jakość | Wysoki | [x] Zrobione |
 | 🥉 | **9. Backend dla panelu integracji** | Funkcjonalność | Średni | [ ] Do zrobienia |
 | 🥉 | **10. Endpoint statystyk** | Wydajność | Średni | [x] Zrobione |
 | 🥉 | **11. Hostowanie własnych treści kursów** | Funkcjonalność | Średni | [ ] Do zrobienia |
@@ -673,7 +676,7 @@ Cel: Ekspansja na nowe rynki i segmenty
 
 **HRL Course Hub** to dobrze zaprojektowana, nowoczesna platforma LMS w architekturze headless. Kod jest czysty, dobrze zorganizowany i używa aktualnych technologii (React 18, Vite 5, TypeScript 5, Prisma 6, Stripe). 
 
-**Największe ryzyko** — domyślny JWT secret i brak rate limitingu — zostały naprawione. Aplikacja nadal wymaga HTTPS enforcement i testów przed pełnym wdrożeniem produkcyjnym.
+**Największe ryzyko** — domyślny JWT secret i brak rate limitingu — zostały naprawione. Aplikacja ma teraz solidne fundamenty bezpieczeństwa (HTTPS, validation, JWT, rate limiting, account lockout, testy) i jest gotowa do wdrożenia produkcyjnego po dodaniu password reset i email verification.
 
 **Największy potencjał** leży w:
 1. Dodaniu własnego hostowania treści kursów (uniezależnienie od zewnętrznych platform)

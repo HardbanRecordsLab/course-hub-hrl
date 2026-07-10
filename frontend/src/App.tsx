@@ -18,6 +18,9 @@ import CertificatesPage from "./pages/CertificatesPage";
 import CourseViewer from "./pages/CourseViewer";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
+import VerifyEmailPage from "./pages/VerifyEmailPage";
 import VerifyCertificatePage from "./pages/VerifyCertificatePage";
 import CheckoutSuccessPage from "./pages/CheckoutSuccessPage";
 import CheckoutCancelPage from "./pages/CheckoutCancelPage";
@@ -46,6 +49,9 @@ function AppRoutes() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={isAuthenticated ? <RedirectByRole /> : <LoginPage />} />
       <Route path="/register" element={isAuthenticated ? <Navigate to="/portal" replace /> : <RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/verify-email" element={isAuthenticated ? <Navigate to="/portal" replace /> : <VerifyEmailPage />} />
       
       <Route element={isAuthenticated ? <AdminLayout /> : <Navigate to="/login" replace />}>
         <Route path="/dashboard" element={<ProtectedRoute allowedRoles={["admin"]}><Dashboard /></ProtectedRoute>} />

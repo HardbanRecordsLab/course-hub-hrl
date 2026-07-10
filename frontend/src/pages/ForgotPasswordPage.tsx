@@ -1,0 +1,109 @@
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { Zap, Mail, Loader2, CheckCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { motion } from "framer-motion";
+import PublicBreadcrumbs from "@/components/PublicBreadcrumbs";
+import { apiPost } from "@/lib/api";
+
+export default function ForgotPasswordPage() {
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      await apiPost("/api/auth/forgot-password", { email });
+      setSent(true);
+    } catch (err: any) {
+      setError(err.message || "Wystąpił błąd");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="px-4 md:px-8 pt-4 md:pt-6 max-w-7xl">
+        <PublicBreadcrumbs />
+      </div>
+      <div className="flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="w-full max-w-md"
+        >
+          <div className="text-center mb-8">
+            <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
+              <Zap className="w-7 h-7 text-primary-foreground" />
+            </div>
+            <h1 className="text-2xl font-bold text-foreground font-['Space_Grotesk']">Resetowanie hasła</h1>
+            <p className="text-muted-foreground text-sm mt-1">Podaj email, aby otrzymać link resetujący</p>
+          </div>
+
+          <div className="bg-card border border-border rounded-xl p-6 shadow-lg">
+            {sent ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-center py-8 space-y-4"
+              >
+                <CheckCircle className="w-12 h-12 text-green-500 mx-auto" />
+                <p className="text-foreground font-medium">Link resetujący wysłany!</p>
+                <p className="text-muted-foreground text-sm">
+                  Sprawdź skrzynkę <strong>{email}</strong>. Link wygasa za 1 godzinę.
+                </p>
+                <Link to="/login" className="text-sm text-primary hover:underline">
+                  Powrót do logowania
+                </Link>
+              </motion.div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="email@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="bg-muted border-border"
+                  />
+                </div>
+
+                {error && (
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2"
+                  >
+                    {error}
+                  </motion.p>
+                )}
+
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
+                  Wyślij link resetujący
+                </Button>
+
+                <div className="text-center">
+                  <Link to="/login" className="text-sm text-primary hover:underline">
+                    Powrót do logowania
+                  </Link>
+                </div>
+              </form>
+            )}
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+}

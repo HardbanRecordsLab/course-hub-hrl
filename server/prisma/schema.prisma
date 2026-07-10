@@ -64,6 +64,11 @@ model User {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
+  emailVerified      Boolean   @default(false)
+  emailVerificationToken String?
+  passwordResetToken String?
+  passwordResetExpires DateTime?
+
   enrollments     Enrollment[]
   orders          Order[]
   certificates    Certificate[]

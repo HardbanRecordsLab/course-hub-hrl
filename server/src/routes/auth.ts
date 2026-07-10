@@ -4,8 +4,8 @@ import crypto from "node:crypto";
 import { prisma } from "../lib/prisma";
 import { requireAuth, signSessionToken } from "../middleware/auth";
 import { authLimiter, registerLimiter, speedLimiter } from "../middleware/rateLimit";
-import { loginSchema, registerSchema } from "../lib/validate";
-import { sendWelcomeEmail } from "../lib/email";
+import { loginSchema, registerSchema, forgotPasswordSchema, resetPasswordSchema, verifyEmailSchema } from "../lib/validate";
+import { sendWelcomeEmail, sendPasswordResetEmail, sendEmailVerification } from "../lib/email";
 import { checkAccountLockout, recordFailedAttempt, clearFailedAttempts } from "../lib/accountLockout";
 
 export const authRouter = Router();
@@ -50,8 +50,17 @@ authRouter.post("/register", registerLimiter, async (req: Request, res: Response
     }
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+
+    const emailVerificationToken = crypto.randomBytes(32).toString("base64url");
+    const emailVerificationTokenHash = hashToken(emailVerificationToken);
+
     const user = await prisma.user.create({
-      data: { email: normalizedEmail, passwordHash, name: name ?? null },
+      data: {
+        email: normalizedEmail,
+        passwordHash,
+        name: name ?? null,
+        emailVerificationToken: emailVerificationTokenHash,
+      },
     });
 
     const token = signSessionToken({
@@ -74,7 +83,11 @@ authRouter.post("/register", registerLimiter, async (req: Request, res: Response
       },
     });
 
+    const frontendUrl = process.env.FRONTEND_URL ?? "https://app-course-hub.hardbanrecordslab.online";
+    const verificationLink = `${frontendUrl}/verify-email?token=${emailVerificationToken}`;
+
     sendWelcomeEmail(user.email, user.name).catch(() => {});
+    sendEmailVerification(user.email, user.name, verificationLink).catch(() => {});
   } catch (err) {
     console.error("register error", err);
     res.status(500).json({ message: "Internal server error" });
@@ -157,6 +170,7 @@ authRouter.get("/me", requireAuth, async (req: Request, res: Response) => {
         name: true,
         role: true,
         isActive: true,
+        emailVerified: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -170,6 +184,115 @@ authRouter.get("/me", requireAuth, async (req: Request, res: Response) => {
     res.json(user);
   } catch (err) {
     console.error("me error", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+authRouter.post("/forgot-password", async (req: Request, res: Response) => {
+  try {
+    const parsed = forgotPasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: parsed.error.errors[0]?.message ?? "Invalid input" });
+      return;
+    }
+    const { email } = parsed.data;
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (!user) {
+      res.json({ message: "If the email exists, a reset link has been sent." });
+      return;
+    }
+
+    const resetToken = crypto.randomBytes(32).toString("base64url");
+    const resetTokenHash = hashToken(resetToken);
+    const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordResetToken: resetTokenHash, passwordResetExpires: resetExpires },
+    });
+
+    const frontendUrl = process.env.FRONTEND_URL ?? "https://app-course-hub.hardbanrecordslab.online";
+    const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
+
+    sendPasswordResetEmail(user.email, user.name, resetLink).catch(() => {});
+
+    res.json({ message: "If the email exists, a reset link has been sent." });
+  } catch (err) {
+    console.error("forgot-password error", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+authRouter.post("/reset-password", async (req: Request, res: Response) => {
+  try {
+    const parsed = resetPasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: parsed.error.errors[0]?.message ?? "Invalid input" });
+      return;
+    }
+    const { token, password } = parsed.data;
+    const tokenHash = hashToken(token);
+
+    const user = await prisma.user.findFirst({
+      where: {
+        passwordResetToken: tokenHash,
+        passwordResetExpires: { gt: new Date() },
+      },
+    });
+
+    if (!user) {
+      res.status(400).json({ message: "Invalid or expired reset token" });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+      },
+    });
+
+    await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+
+    res.json({ message: "Password has been reset successfully" });
+  } catch (err) {
+    console.error("reset-password error", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+authRouter.post("/verify-email", async (req: Request, res: Response) => {
+  try {
+    const parsed = verifyEmailSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: parsed.error.errors[0]?.message ?? "Invalid input" });
+      return;
+    }
+    const { token } = parsed.data;
+
+    const user = await prisma.user.findFirst({
+      where: { emailVerificationToken: hashToken(token) },
+    });
+
+    if (!user) {
+      res.status(400).json({ message: "Invalid verification token" });
+      return;
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { emailVerified: true, emailVerificationToken: null },
+    });
+
+    res.json({ message: "Email verified successfully" });
+  } catch (err) {
+    console.error("verify-email error", err);
     res.status(500).json({ message: "Internal server error" });
   }
 });
