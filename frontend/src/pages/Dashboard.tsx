@@ -32,26 +32,7 @@ const actionColors: Record<string, string> = {
 export default function Dashboard() {
   const { data: stats } = useQuery({
     queryKey: ["dashboard-stats"],
-    queryFn: async () => {
-      const [users, courses, accesses] = await Promise.all([
-        apiGet<{ id: string }[]>("/api/users"),
-        apiGet<any[]>("/api/courses/admin"),
-        apiGet<any[]>("/api/access"),
-      ]);
-      const activeCourses = courses.filter((c) => c.status === "PUBLISHED").length;
-      const paidCourses = courses.filter((c) => c.priceCents > 0).length;
-      return {
-        users: users.length,
-        activeCourses,
-        activeAccesses: accesses.filter((a) => a.status === "ACTIVE").length,
-        paidCourses,
-      };
-    },
-  });
-
-  const { data: recentLogs = [] } = useQuery({
-    queryKey: ["recent-logs"],
-    queryFn: async () => apiGet<any[]>("/api/logs"),
+    queryFn: async () => apiGet<{ users: number; publishedCourses: number; paidCourses: number; activeEnrollments: number; totalRevenueCents: number; recentLogs: any[]; recentOrders: any[] }>("/api/stats"),
   });
 
   return (
@@ -63,9 +44,9 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Users} label="Użytkownicy" value={String(stats?.users ?? 0)} change="" color="green" delay={0} />
-        <StatCard icon={BookOpen} label="Aktywne kursy" value={String(stats?.activeCourses ?? 0)} change="" color="blue" delay={0.05} />
-        <StatCard icon={KeySquare} label="Aktywne dostępy" value={String(stats?.activeAccesses ?? 0)} change="" color="purple" delay={0.1} />
-        <StatCard icon={DollarSign} label="Kursy płatne" value={String(stats?.paidCourses ?? 0)} change="" color="amber" delay={0.15} />
+        <StatCard icon={BookOpen} label="Aktywne kursy" value={String(stats?.publishedCourses ?? 0)} change="" color="blue" delay={0.05} />
+        <StatCard icon={KeySquare} label="Aktywne dostępy" value={String(stats?.activeEnrollments ?? 0)} change="" color="purple" delay={0.1} />
+        <StatCard icon={DollarSign} label="Przychód (PLN)" value={String(((stats?.totalRevenueCents ?? 0) / 100).toFixed(2))} change="" color="amber" delay={0.15} />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-4">
@@ -76,10 +57,10 @@ export default function Dashboard() {
             <h3 className="text-sm font-semibold">Ostatnie zdarzenia</h3>
           </div>
           <div className="space-y-2">
-            {recentLogs.length === 0 && (
+            {(stats?.recentLogs ?? []).length === 0 && (
               <p className="text-xs text-muted-foreground py-6 text-center">Brak zdarzeń</p>
             )}
-            {recentLogs.map((log) => (
+            {(stats?.recentLogs ?? []).map((log) => (
               <div key={log.id} className="flex items-center gap-3 text-xs px-3 py-2 rounded-lg bg-ch-surface-2/40 border border-border/50">
                 <span className={`px-2 py-0.5 rounded font-mono ${actionColors[log.action] || "bg-muted text-muted-foreground"}`}>
                   {log.action}
@@ -99,17 +80,23 @@ export default function Dashboard() {
           className="rounded-xl bg-card border border-border p-5">
           <div className="flex items-center gap-2 mb-4">
             <Database className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold">Integracje</h3>
-            <span className="ml-auto text-[11px] text-muted-foreground font-mono">
-              {integrations.filter((i) => i.enabled).length}/{integrations.length} aktywnych
-            </span>
+            <h3 className="text-sm font-semibold">Ostatnie zamówienia</h3>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            {integrations.slice(0, 8).map((i) => (
-              <div key={i.name} className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs ${i.enabled ? "bg-ch-surface-2 border-border" : "bg-muted/30 border-transparent"}`}>
-                <span className="text-sm">{i.icon}</span>
-                <span className={i.enabled ? "text-foreground" : "text-muted-foreground"}>{i.name}</span>
-                {i.enabled && <span className="w-1.5 h-1.5 rounded-full bg-primary ml-auto pulse-dot" />}
+          <div className="space-y-2">
+            {(stats?.recentOrders ?? []).length === 0 && (
+              <p className="text-xs text-muted-foreground py-6 text-center">Brak zamówień</p>
+            )}
+            {(stats?.recentOrders ?? []).map((order) => (
+              <div key={order.id} className="flex items-center gap-3 text-xs px-3 py-2 rounded-lg bg-ch-surface-2/40 border border-border/50">
+                <span className={`px-2 py-0.5 rounded font-mono ${order.status === "PAID" ? "bg-ch-green/10 text-ch-green" : order.status === "REFUNDED" ? "bg-ch-red/10 text-ch-red" : "bg-muted text-muted-foreground"}`}>
+                  {order.status}
+                </span>
+                <span className="flex-1 text-muted-foreground truncate">
+                  {order.items?.map((item: any) => item.course?.title).filter(Boolean).join(", ") || "Zamówienie"}
+                </span>
+                <span className="text-muted-foreground font-mono flex-shrink-0">
+                  {(order.total / 100).toFixed(2)} PLN
+                </span>
               </div>
             ))}
           </div>
