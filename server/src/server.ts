@@ -12,6 +12,7 @@ import { webhooksRouter } from "./routes/webhooks";
 import { usersRouter } from "./routes/users";
 import { logsRouter } from "./routes/logs";
 import { statsRouter } from "./routes/stats";
+import { refreshRouter } from "./routes/refresh";
 
 const app = express();
 
@@ -56,6 +57,7 @@ app.use("/api/checkout", checkoutRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/logs", logsRouter);
 app.use("/api/stats", statsRouter);
+app.use("/api/auth/refresh", refreshRouter);
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ message: "Not found" });

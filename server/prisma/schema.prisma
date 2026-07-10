@@ -68,6 +68,7 @@ model User {
   orders          Order[]
   certificates    Certificate[]
   accessLogs      AccessLog[]
+  refreshTokens   RefreshToken[]
 }
 
 model Course {
@@ -176,4 +177,17 @@ model AccessLog {
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }

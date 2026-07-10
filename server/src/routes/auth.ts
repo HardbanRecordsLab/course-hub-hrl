@@ -1,5 +1,6 @@
 import { Request, Response, Router } from "express";
 import bcrypt from "bcryptjs";
+import crypto from "node:crypto";
 import { prisma } from "../lib/prisma";
 import { requireAuth, signSessionToken } from "../middleware/auth";
 import { authLimiter, registerLimiter, speedLimiter } from "../middleware/rateLimit";
@@ -9,6 +10,27 @@ import { sendWelcomeEmail } from "../lib/email";
 export const authRouter = Router();
 
 const SALT_ROUNDS = 12;
+const REFRESH_TOKEN_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
+
+function getSessionSecret(): string {
+  return process.env.SESSION_JWT_SECRET ?? "hrl_course_hub_session_991823_change_in_production_xyz";
+}
+
+function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+async function createRefreshToken(userId: string): Promise<string> {
+  const raw = crypto.randomBytes(48).toString("base64url");
+  const tokenHash = hashToken(raw);
+  const expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRY_MS);
+
+  await prisma.refreshToken.create({
+    data: { userId, tokenHash, expiresAt },
+  });
+
+  return raw;
+}
 
 authRouter.post("/register", registerLimiter, async (req: Request, res: Response) => {
   try {
@@ -31,11 +53,24 @@ authRouter.post("/register", registerLimiter, async (req: Request, res: Response
       data: { email: normalizedEmail, passwordHash, name: name ?? null },
     });
 
-    res.status(201).json({
+    const token = signSessionToken({
       id: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
+    });
+
+    const refreshToken = await createRefreshToken(user.id);
+
+    res.status(201).json({
+      token,
+      refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
     });
 
     sendWelcomeEmail(user.email, user.name).catch(() => {});
@@ -79,8 +114,11 @@ authRouter.post("/login", authLimiter, speedLimiter, async (req: Request, res: R
       role: user.role,
     });
 
+    const refreshToken = await createRefreshToken(user.id);
+
     res.json({
       token,
+      refreshToken,
       user: {
         id: user.id,
         email: user.email,
