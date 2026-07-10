@@ -3,7 +3,7 @@
 > **Data analizy**: 9 lipca 2026  
 > **Autor**: Analiza automatyczna na podstawie kodu źródłowego  
 > **Wersja analizowanego kodu**: 1.0.0  
-> **Data aktualizacji**: 10 lipca 2026 — testy jednostkowe (36), HTTPS enforcement, account lockout, email validation, structured logging
+> **Data aktualizacji**: 10 lipca 2026 — APLIKACJA LIVE ✅ — wszystkie testy przechodzą (36/36), health check OK, HTTPS redirect aktywny, password reset + email verification wdrożone
 
 ---
 
@@ -362,7 +362,7 @@ Osoba trzecia → /verify/:code → GET /api/certificates/verify/:code
 ## 12. Propozycje nowych funkcji — Lista do rozważenia 💡
 
 ### Priorytet 1 — Niezbędne do produkcji
-- [ ] **System powiadomień email** — rejestracja, zakup, dostęp, wygaśnięcie, certyfikat. Integracja z MailerLite/Brevo (mocki już w UI)
+- [x] **System powiadomień email** — rejestracja, zakup, dostęp, wygaśnięcie, certyfikat. Integracja z MailerLite/Brevo (mocki już w UI)
 - [ ] **Własne hostowanie treści kursów** — lekcje (video, PDF, artykuły) bezpośrednio w Course Hub
 - [ ] **Dashboard analityczny** — wykresy sprzedaży, popularności, konwersji, aktywności
 - [ ] **Koszyk zakupowy** — zakup wielu kursów w jednej transakcji
@@ -676,16 +676,16 @@ Cel: Ekspansja na nowe rynki i segmenty
 
 **HRL Course Hub** to dobrze zaprojektowana, nowoczesna platforma LMS w architekturze headless. Kod jest czysty, dobrze zorganizowany i używa aktualnych technologii (React 18, Vite 5, TypeScript 5, Prisma 6, Stripe). 
 
-**Największe ryzyko** — domyślny JWT secret i brak rate limitingu — zostały naprawione. Aplikacja ma teraz solidne fundamenty bezpieczeństwa (HTTPS, validation, JWT, rate limiting, account lockout, testy) i jest gotowa do wdrożenia produkcyjnego po dodaniu password reset i email verification.
+**APLIKACJA LIVE** ✅ — wszystkie krytyczne luki bezpieczeństwa naprawione. Fundamenty obejmują: HTTPS enforcement, JWT z refresh tokenami, rate limiting, account lockout, walidacja Zod, transakcje DB, powiadomienia email, password reset, email verification, 36 testów jednostkowych. Backend działa na VPS (PM2), frontend na Vercel.
 
 **Największy potencjał** leży w:
 1. Dodaniu własnego hostowania treści kursów (uniezależnienie od zewnętrznych platform)
-2. Systemie powiadomień email (kluczowy dla komunikacji z użytkownikami)
-3. Dashboardzie analitycznym (podejmowanie decyzji biznesowych)
-4. Integracjach zewnętrznych (webhooki, n8n, Make)
+2. Dashboardzie analitycznym (podejmowanie decyzji biznesowych)
+3. Integracjach zewnętrznych (webhooki, n8n, Make)
+4. Kodach rabatowych i koszyku zakupowym (monetyzacja)
 
-Aplikacja ma solidne fundamenty i przy odpowiednich inwestycjach w bezpieczeństwo, testy i rozszerzenie funkcjonalności może stać się kompleksową platformą edukacyjną.
+Aplikacja ma solidne fundamenty produkcyjne i jest gotowa do obsługi użytkowników. Dalszy rozwój powinien skupić się na funkcjonalnościach biznesowych (hostowanie treści, kody rabatowe, subskrypcje).
 
 ---
 
-*Raport wygenerowany automatycznie na podstawie analizy kodu źródłowego. Wszystkie checklisty odzwierciedlają rzeczywisty stan implementacji na dzień 9 lipca 2026.*
+*Raport zaktualizowany 10 lipca 2026. Status: APLIKACJA LIVE — wszystkie testy przechodzą.*
