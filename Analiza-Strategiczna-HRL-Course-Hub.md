@@ -300,7 +300,7 @@ Osoba trzecia → /verify/:code → GET /api/certificates/verify/:code
 ### Luki bezpieczeństwa (krytyczne)
 - [x] **Usunąć domyślny JWT secret** — `SESSION_JWT_SECRET` ma hardcodowany fallback: `"hrl_course_hub_session_991823_change_in_production_xyz"`. Rzucić błędem przy starcie, jeśli nie ustawiony.
 - [x] **Dodać rate limiting** — endpointy `/api/auth/login` i `/api/auth/register` bez ograniczenia requestów → podatne na brute-force
-- [ ] **Wdrożyć refresh tokeny** — JWT z 7-dniowym ważnością, brak mechanizmu odświeżania/unieważniania
+- [x] **Wdrożyć refresh tokeny** — JWT z 7-dniowym ważnością, brak mechanizmu odświeżania/unieważniania
 - [ ] **Wymusić HTTPS** — w kodzie serwera brak enforcement HTTPS
 - [x] **Skonfigurować CORS na produkcji** — whitelist originów zamiast `*`
 - [ ] **Dodać null/undefined check dla `req.user`** — w wielu miejscach `req.user!.id` bez gwarancji middleware'a
@@ -333,15 +333,15 @@ Osoba trzecia → /verify/:code → GET /api/certificates/verify/:code
 
 ### Backend
 - [x] Rate limiting — ochrona przed brute-force
-- [ ] Paginacja API — wsparcie `?page=1&limit=20`
-- [ ] Endpoint statystyk — dedykowany `/api/stats`
+- [x] Paginacja API — wsparcie `?page=1&limit=20`
+- [x] Endpoint statystyk — dedykowany `/api/stats`
 - [x] Walidacja inputów — Zod/express-validator dla wszystkich pól
 - [x] Transakcje DB — Prisma $transaction w webhooku Stripe
-- [ ] Refresh tokeny — krótki access token + długi refresh token
+- [x] Refresh tokeny — krótki access token + długi refresh token
 - [ ] Reset hasła — endpoint do resetowania hasła (email + token)
 - [ ] Potwierdzenie email — weryfikacja emaila po rejestracji
 - [ ] Konfiguracja integracji — backend CRUD dla integracji zewnętrznych
-- [ ] Wysyłka emaili — integracja z providerem email (MailerLite/Brevo)
+- [x] Wysyłka emaili — integracja z providerem email (MailerLite/Brevo)
 - [ ] Webhooki wychodzące — wysyłanie zdarzeń do zewnętrznych systemów
 - [ ] Kursy własne (treść) — hostowanie lekcji, video, PDF
 - [ ] Wielojęzyczność — i18n (react-i18next)
@@ -465,7 +465,7 @@ Osoba trzecia → /verify/:code → GET /api/certificates/verify/:code
 - [x] **Dodać Helmet.js** — HTTP security headers
 
 ### Wysoki priorytet
-- [ ] **Refresh token mechanism** — access token 15 min + refresh token 7 dni z unieważnieniem
+- [x] **Refresh token mechanism** — access token 15 min + refresh token 7 dni z unieważnieniem
 - [ ] **HTTPS wymuszenie** — przekierowanie HTTP → HTTPS na nginx/express
 - [ ] **CORS whitelist** — ścisła lista dozwolonych originów zamiast `*`
 - [ ] **CSRF protection** — ochrona dla POST/PATCH/DELETE
@@ -518,13 +518,13 @@ Osoba trzecia → /verify/:code → GET /api/certificates/verify/:code
 - [x] Dodać Helmet.js dla HTTP security headers
 - [x] Dodać walidację inputów po stronie backendu
 - [x] Skonfigurować CORS na produkcji (whitelist)
-- [ ] Dodać paginację do endpointów GET
+- [x] Dodać paginację do endpointów GET
 
 ### P1 — Wysoki priorytet (najbliższe sprinty)
-- [ ] Dodać transakcje DB w webhooku Stripe
-- [ ] Stworzyć dedykowany endpoint statystyk
-- [ ] Dodać system powiadomień email
-- [ ] Zaimplementować system refresh tokenów
+- [x] Dodać transakcje DB w webhooku Stripe
+- [x] Stworzyć dedykowany endpoint statystyk
+- [x] Dodać system powiadomień email
+- [x] Zaimplementować system refresh tokenów
 - [ ] Dodać testy (jednostkowe + integracyjne)
 - [ ] Zrealizować backend dla panelu integracji
 
@@ -650,12 +650,12 @@ Cel: Ekspansja na nowe rynki i segmenty
 | 🥇 | **2. Rate limiting dla auth endpointów** | Bezpieczeństwo | Krytyczny | [x] Zrobione |
 | 🥇 | **3. Walidacja inputów + Helmet.js + CORS** | Bezpieczeństwo | Krytyczny | [x] Zrobione |
 | 🥈 | **4. Transakcje DB w webhooku Stripe** | Stabilność | Wysoki | [x] Zrobione |
-| 🥈 | **5. System powiadomień email** | Funkcjonalność | Wysoki | [ ] Do zrobienia |
-| 🥈 | **6. Paginacja API** | Wydajność | Wysoki | [ ] Do zrobienia |
-| 🥈 | **7. Refresh tokeny** | Bezpieczeństwo | Wysoki | [ ] Do zrobienia |
+| 🥈 | **5. System powiadomień email** | Funkcjonalność | Wysoki | [x] Zrobione |
+| 🥈 | **6. Paginacja API** | Wydajność | Wysoki | [x] Zrobione |
+| 🥈 | **7. Refresh tokeny** | Bezpieczeństwo | Wysoki | [x] Zrobione |
 | 🥈 | **8. Testy (jednostkowe + integracyjne)** | Jakość | Wysoki | [ ] Do zrobienia |
 | 🥉 | **9. Backend dla panelu integracji** | Funkcjonalność | Średni | [ ] Do zrobienia |
-| 🥉 | **10. Endpoint statystyk** | Wydajność | Średni | [ ] Do zrobienia |
+| 🥉 | **10. Endpoint statystyk** | Wydajność | Średni | [x] Zrobione |
 | 🥉 | **11. Hostowanie własnych treści kursów** | Funkcjonalność | Średni | [ ] Do zrobienia |
 | 🥉 | **12. Responsywność + mobile first** | UX | Średni | [ ] Do zrobienia |
 | 🥉 | **13. Dashboard analityczny** | Funkcjonalność | Średni | [ ] Do zrobienia |
@@ -673,7 +673,7 @@ Cel: Ekspansja na nowe rynki i segmenty
 
 **HRL Course Hub** to dobrze zaprojektowana, nowoczesna platforma LMS w architekturze headless. Kod jest czysty, dobrze zorganizowany i używa aktualnych technologii (React 18, Vite 5, TypeScript 5, Prisma 6, Stripe). 
 
-**Największe ryzyko** — domyślny JWT secret i brak rate limitingu — zostały naprawione. Aplikacja nadal wymaga refresh tokeny, HTTPS enforcement i testów przed pełnym wdrożeniem produkcyjnym.
+**Największe ryzyko** — domyślny JWT secret i brak rate limitingu — zostały naprawione. Aplikacja nadal wymaga HTTPS enforcement i testów przed pełnym wdrożeniem produkcyjnym.
 
 **Największy potencjał** leży w:
 1. Dodaniu własnego hostowania treści kursów (uniezależnienie od zewnętrznych platform)
