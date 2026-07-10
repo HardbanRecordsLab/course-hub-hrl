@@ -1,6 +1,7 @@
 import { Request, Response, Router } from "express";
 import Stripe from "stripe";
 import { prisma } from "../lib/prisma";
+import { sendPurchaseConfirmation, sendAccessGrantedEmail, sendCertificateIssuedEmail } from "../lib/email";
 
 export const webhooksRouter = Router();
 
@@ -51,6 +52,7 @@ webhooksRouter.post("/stripe", async (req: Request, res: Response) => {
         });
 
         const course = await tx.course.findUnique({ where: { id: courseId } });
+        const user = await tx.user.findUnique({ where: { id: userId } });
 
         let accessEndsAt: Date | null = null;
         if (course) {
@@ -83,8 +85,12 @@ webhooksRouter.post("/stripe", async (req: Request, res: Response) => {
           },
         });
 
+        if (course) {
+          sendPurchaseConfirmation(user?.email ?? userId, user?.name ?? null, course.title).catch(() => {});
+          sendAccessGrantedEmail(user?.email ?? userId, user?.name ?? null, course.title).catch(() => {});
+        }
+
         if (course && course.certificateEnabled && course.certificateIssueMode === "on_purchase") {
-          const user = await tx.user.findUnique({ where: { id: userId } });
           try {
             await tx.certificate.create({
               data: {
@@ -103,6 +109,7 @@ webhooksRouter.post("/stripe", async (req: Request, res: Response) => {
                 meta: { mode: "on_purchase", orderId },
               },
             });
+            sendCertificateIssuedEmail(user?.email ?? userId, user?.name ?? null, course.title).catch(() => {});
           } catch (certErr) {
             if ((certErr as { code?: string }).code !== "P2002") throw certErr;
           }

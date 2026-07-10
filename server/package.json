@@ -21,15 +21,17 @@
     "express-slow-down": "^2.0.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^7.0.0",
     "stripe": "^17.7.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@types/express": "^5.0.1",
-    "@types/node": "^22.13.14",
-    "@types/cors": "^2.8.17",
     "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.1",
     "@types/jsonwebtoken": "^9.0.9",
+    "@types/node": "^22.13.14",
+    "@types/nodemailer": "^8.0.1",
     "prisma": "^6.6.0",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"

@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma";
 import { requireAuth, signSessionToken } from "../middleware/auth";
 import { authLimiter, registerLimiter, speedLimiter } from "../middleware/rateLimit";
 import { loginSchema, registerSchema } from "../lib/validate";
+import { sendWelcomeEmail } from "../lib/email";
 
 export const authRouter = Router();
 
@@ -36,6 +37,8 @@ authRouter.post("/register", registerLimiter, async (req: Request, res: Response
       name: user.name,
       role: user.role,
     });
+
+    sendWelcomeEmail(user.email, user.name).catch(() => {});
   } catch (err) {
     console.error("register error", err);
     res.status(500).json({ message: "Internal server error" });

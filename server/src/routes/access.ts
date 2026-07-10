@@ -1,10 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { Request, Response, Router } from "express";
 import jwt from "jsonwebtoken";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { requireAdmin, requireAuth } from "../middleware/auth";
 import { logAccess } from "./logs";
 import { grantAccessSchema } from "../lib/validate";
+import { sendAccessGrantedEmail, sendCertificateIssuedEmail } from "../lib/email";
 import { parsePagination } from "../lib/pagination";
 
 export const accessRouter = Router();
@@ -89,6 +91,13 @@ accessRouter.post("/", requireAuth, requireAdmin, async (req: Request, res: Resp
     });
 
     await logAccess(userId, courseId, "granted", { source: source ?? "admin" });
+
+    const course = await prisma.course.findUnique({ where: { id: courseId } });
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (course && user) {
+      sendAccessGrantedEmail(user.email, user.name ?? null, course.title).catch(() => {});
+    }
+
     res.status(201).json(enrollment);
   } catch (err) {
     if (isNotFound(err)) {
@@ -169,6 +178,7 @@ accessRouter.patch("/:id/complete", requireAuth, requireAdmin, async (req: Reque
         await logAccess(existing.userId, existing.courseId, "certificate_issued", {
           mode: "manual",
         });
+        sendCertificateIssuedEmail(existing.user.email, existing.user.name ?? null, courseTitleSnapshot).catch(() => {});
       } catch (certErr) {
         if ((certErr as { code?: string }).code !== "P2002") throw certErr;
       }
