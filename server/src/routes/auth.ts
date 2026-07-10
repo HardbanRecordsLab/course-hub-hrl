@@ -6,6 +6,7 @@ import { requireAuth, signSessionToken } from "../middleware/auth";
 import { authLimiter, registerLimiter, speedLimiter } from "../middleware/rateLimit";
 import { loginSchema, registerSchema } from "../lib/validate";
 import { sendWelcomeEmail } from "../lib/email";
+import { checkAccountLockout, recordFailedAttempt, clearFailedAttempts } from "../lib/accountLockout";
 
 export const authRouter = Router();
 
@@ -90,8 +91,19 @@ authRouter.post("/login", authLimiter, speedLimiter, async (req: Request, res: R
     const { email, password } = parsed.data;
 
     const normalizedEmail = email.toLowerCase().trim();
+    const clientIp = (req.headers["x-forwarded-for"] as string ?? req.socket.remoteAddress ?? "unknown").toString();
+
+    const lockout = checkAccountLockout(normalizedEmail, clientIp);
+    if (lockout.locked) {
+      res.status(429).json({
+        message: `Account temporarily locked. Try again in ${Math.ceil((lockout.retryAfterMs ?? 0) / 60000)} minutes.`,
+      });
+      return;
+    }
+
     const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (!user || !user.passwordHash) {
+      recordFailedAttempt(normalizedEmail, clientIp);
       res.status(401).json({ message: "Invalid credentials" });
       return;
     }
@@ -103,9 +115,12 @@ authRouter.post("/login", authLimiter, speedLimiter, async (req: Request, res: R
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
+      recordFailedAttempt(normalizedEmail, clientIp);
       res.status(401).json({ message: "Invalid credentials" });
       return;
     }
+
+    clearFailedAttempts(normalizedEmail, clientIp);
 
     const token = signSessionToken({
       id: user.id,

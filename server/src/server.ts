@@ -3,6 +3,7 @@ import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
 
+import { validateEnv } from "./lib/env";
 import { authRouter } from "./routes/auth";
 import { coursesRouter } from "./routes/courses";
 import { accessRouter } from "./routes/access";
@@ -14,17 +15,23 @@ import { logsRouter } from "./routes/logs";
 import { statsRouter } from "./routes/stats";
 import { refreshRouter } from "./routes/refresh";
 
+const config = validateEnv();
+
 const app = express();
 
-const PORT = Number(process.env.PORT ?? 3001);
-const NODE_ENV = process.env.NODE_ENV ?? "development";
-const CORS_ORIGIN = process.env.CORS_ORIGIN;
+app.set("trust proxy", 1);
 
-if (NODE_ENV === "production" && !CORS_ORIGIN) {
-  throw new Error("CORS_ORIGIN environment variable is required in production");
+if (config.NODE_ENV === "production") {
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.secure || req.headers["x-forwarded-proto"] === "https") {
+      next();
+    } else {
+      res.redirect(301, `https://${req.headers.host}${req.url}`);
+    }
+  });
 }
 
-const allowedOrigins = (CORS_ORIGIN ?? "http://localhost:5173")
+const allowedOrigins = (config.CORS_ORIGIN ?? "http://localhost:5173")
   .split(",")
   .map((origin) => origin.trim());
 
@@ -43,7 +50,17 @@ app.use(
 
 app.use(helmet());
 app.use("/api/webhooks", express.raw({ type: "application/json" }), webhooksRouter);
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+
+app.use((req: Request, _res: Response, next: NextFunction) => {
+  for (const key in req.body) {
+    if (typeof req.body[key] === "string") {
+      req.body[key] = req.body[key].replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
+    }
+  }
+  next();
+});
 
 app.get("/api/health", (_req: Request, res: Response) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
@@ -70,6 +87,6 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(status).json({ message });
 });
 
-app.listen(PORT, () => {
-  console.log(`HRL Course Hub server listening on port ${PORT}`);
+app.listen(config.PORT, () => {
+  console.log(`HRL Course Hub server listening on port ${config.PORT}`);
 });
